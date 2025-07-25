@@ -1,0 +1,25 @@
+[package]
+name = "image_converter"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "image_converter"
+path = "src/lib.rs"
+
+[[bin]]
+name = "image_converter"
+path = "src/main.rs"
+
+[dependencies]
+image = "0.24.2"
+webp = "0.2.0"
+ravif = "0.12.0"
+clap = "3.2.8"
+dialoguer = "0.11"
+colored = "2.1"
+indicatif = "0.17"
+
+[dev-dependencies]
+tempfile = "3.0"
+colored = "2.1"
