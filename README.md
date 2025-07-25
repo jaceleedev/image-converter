@@ -1,0 +1,115 @@
+# 🖼️ Image Converter
+
+PNG, JPG, JPEG 이미지를 WebP와 AVIF 형식으로 변환하는 고성능 이미지 변환기입니다.
+
+## ✨ 주요 기능
+
+- **다양한 형식 지원**: PNG, JPG, JPEG → WebP, AVIF
+- **대화형 모드**: 편리한 CLI 인터페이스
+- **용량 비교**: 변환 전후 파일 크기 및 감소율 표시
+- **진행 상황 표시**: 실시간 진행률 표시
+- **품질 설정**: 1-100% 품질 조정 가능
+- **아름다운 UI**: 이모티콘과 색상으로 보기 좋은 출력
+
+## 📦 설치
+
+1. Rust가 설치되어 있어야 합니다. [Rust 설치 가이드](https://www.rust-lang.org/tools/install)를 참고하세요.
+2. 이 프로젝트를 클론하거나 다운로드합니다:
+
+```bash
+git clone <repository-url>
+cd image_converter
+```
+
+3. 프로젝트 디렉토리에서 빌드합니다:
+
+```bash
+cargo build --release
+```
+
+## 🚀 사용법
+
+### 대화형 모드 (추천) 🌟
+
+```bash
+./target/release/image_converter -I
+```
+
+또는
+
+```bash
+./target/release/image_converter --interactive
+```
+
+단계별로 안내를 따라 쉽게 이미지를 변환할 수 있습니다:
+
+1. 변환할 이미지 파일 경로 입력
+2. 출력 형식 선택 (WebP/AVIF)
+3. 품질 선택 (최고/높음/보통/낮음/사용자 지정)
+4. 출력 파일 경로 확인
+
+### 명령줄 모드
+
+```bash
+# WebP로 변환 (품질 90%)
+./target/release/image_converter -i input.png -o output.webp -f webp -q 90
+
+# AVIF로 변환 (품질 80%)
+./target/release/image_converter -i photo.jpg -o photo.avif -f avif -q 80
+```
+
+## 📊 옵션
+
+- `-I, --interactive`: 대화형 모드 실행
+- `-i, --input <FILE>`: 입력 이미지 파일 경로
+- `-o, --output <FILE>`: 출력 파일 경로
+- `-f, --format <FORMAT>`: 출력 형식 (webp 또는 avif)
+- `-q, --quality <QUALITY>`: 변환 품질 (1-100, 기본값: 90)
+
+## 💡 예제 출력
+
+```
+🚀 이미지 변환을 시작합니다...
+📁 원본: 5.32 MB (1920x1080 px)
+[00:00:02] ████████████████████████████████ 100% 변환 완료!
+💾 변환 후: 1.23 MB (품질: 90%)
+🎉 용량 감소: 76.9% ↓
+✨ 변환 완료: input.png → output.webp
+```
+
+## 🎯 Alias 설정
+
+자주 사용하는 명령어를 alias로 설정하여 편리하게 사용할 수 있습니다. 예를 들어, zsh를 사용하는 경우 `~/.zshrc` 파일에 다음을 추가하세요:
+
+```bash
+alias imgconv='~/image_converter/target/release/image_converter'
+# 대화형 모드로 바로 실행
+alias imgconvi='~/image_converter/target/release/image_converter -I'
+```
+
+이후에는 다음과 같이 사용할 수 있습니다:
+
+```bash
+# 일반 모드
+imgconv -i input.png -o output.webp -f webp -q 80
+
+# 대화형 모드
+imgconvi
+```
+
+## 🛠️ 기술 스택
+
+- **Rust**: 시스템 프로그래밍 언어
+- **image**: 이미지 처리
+- **webp**: WebP 인코딩
+- **ravif**: AVIF 인코딩
+- **clap**: CLI 인자 처리
+- **dialoguer**: 대화형 인터페이스
+- **colored**: 색상 출력
+- **indicatif**: 진행률 표시
+
+## 📈 성능
+
+- WebP: 일반적으로 PNG 대비 25-35% 작은 크기
+- AVIF: 일반적으로 JPEG 대비 50% 작은 크기 (더 나은 품질)
+- 변환 속도: 이미지 크기와 선택한 품질에 따라 다름
