@@ -4,6 +4,26 @@ use std::path::Path;
 
 use image_converter::{convert_directory, convert_image, interactive::interactive_mode};
 
+fn parse_quality(s: &str) -> Result<f32, String> {
+    let q: f32 = s
+        .parse()
+        .map_err(|_| format!("'{s}' 는 유효한 숫자가 아닙니다"))?;
+    if !(1.0..=100.0).contains(&q) {
+        return Err(format!("품질은 1.0~100.0 범위여야 합니다 (입력: {q})"));
+    }
+    Ok(q)
+}
+
+fn parse_threads(s: &str) -> Result<usize, String> {
+    let n: usize = s
+        .parse()
+        .map_err(|_| format!("'{s}' 는 유효한 정수가 아닙니다"))?;
+    if n == 0 {
+        return Err("스레드 수는 1 이상이어야 합니다".into());
+    }
+    Ok(n)
+}
+
 /// PNG/JPG/JPEG/WebP/AVIF/TIFF/BMP/ICO 이미지를 PNG/JPG/WebP/AVIF 로 변환합니다 (단일 파일 + 디렉토리 일괄)
 #[derive(Parser, Debug)]
 #[command(name = "image_converter", version = "2.4", about, long_about = None)]
@@ -25,15 +45,15 @@ struct Cli {
     format: Option<String>,
 
     /// 변환 품질 1-100 (PNG 는 무손실이라 무시됨, 기본값: 90)
-    #[arg(short, long, default_value_t = 90.0)]
+    #[arg(short, long, default_value_t = 90.0, value_parser = parse_quality)]
     quality: f32,
 
     /// 디렉토리 입력 시 하위 폴더까지 재귀 변환
     #[arg(short, long)]
     recursive: bool,
 
-    /// 디렉토리 모드에서 사용할 스레드 수 (미지정 시 RAYON_NUM_THREADS 또는 CPU 코어 수)
-    #[arg(short, long, value_name = "N")]
+    /// 디렉토리 모드에서 사용할 스레드 수 (1 이상, 미지정 시 RAYON_NUM_THREADS 또는 CPU 코어 수)
+    #[arg(short, long, value_name = "N", value_parser = parse_threads)]
     threads: Option<usize>,
 }
 
@@ -65,5 +85,50 @@ fn main() {
     if let Err(e) = result {
         eprintln!("{} 오류: {}", "❌".bright_red(), e);
         std::process::exit(1);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_quality_accepts_valid_range() {
+        assert_eq!(parse_quality("1").unwrap(), 1.0);
+        assert_eq!(parse_quality("50.5").unwrap(), 50.5);
+        assert_eq!(parse_quality("100").unwrap(), 100.0);
+    }
+
+    #[test]
+    fn parse_quality_rejects_out_of_range() {
+        assert!(parse_quality("0").is_err());
+        assert!(parse_quality("0.99").is_err());
+        assert!(parse_quality("100.01").is_err());
+        assert!(parse_quality("-10").is_err());
+        assert!(parse_quality("200").is_err());
+    }
+
+    #[test]
+    fn parse_quality_rejects_non_numeric() {
+        let err = parse_quality("abc").unwrap_err();
+        assert!(err.contains("유효한 숫자가 아닙니다"));
+    }
+
+    #[test]
+    fn parse_threads_accepts_positive() {
+        assert_eq!(parse_threads("1").unwrap(), 1);
+        assert_eq!(parse_threads("16").unwrap(), 16);
+    }
+
+    #[test]
+    fn parse_threads_rejects_zero() {
+        let err = parse_threads("0").unwrap_err();
+        assert!(err.contains("1 이상"));
+    }
+
+    #[test]
+    fn parse_threads_rejects_non_numeric() {
+        assert!(parse_threads("abc").is_err());
+        assert!(parse_threads("-1").is_err());
     }
 }

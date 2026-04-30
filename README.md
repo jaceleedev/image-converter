@@ -120,7 +120,7 @@ RAYON_NUM_THREADS=4 ./target/release/image_converter -i photos -o photos_webp -f
 - `-f, --format <FORMAT>`: 출력 형식 (`png`, `jpg`, `jpeg`, `webp`, `avif`)
 - `-q, --quality <QUALITY>`: 변환 품질 1-100 (기본값: 90, **PNG 출력 시 무손실이라 무시됨**)
 - `-r, --recursive`: 디렉토리 입력 시 하위 폴더까지 재귀 변환
-- `-t, --threads <N>`: 디렉토리 모드에서 사용할 스레드 수 (미지정 시 `RAYON_NUM_THREADS` 또는 CPU 코어 수). 단일 파일 변환에는 영향 없음
+- `-t, --threads <N>`: 디렉토리 모드에서 사용할 스레드 수 (1 이상, 미지정 시 `RAYON_NUM_THREADS` 또는 CPU 코어 수). 단일 파일 변환에는 영향 없음
 
 ## 💡 예제 출력
 
