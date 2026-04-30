@@ -12,6 +12,16 @@
 
 ## 최근 작업 로그
 
+### 2026-04-30 — `test: JPG/JPEG 단일 입력 회귀 테스트 추가` (PR 진행 중)
+
+- `src/tests/integration_tests.rs` — 통합 테스트 3개 추가 (총 20 → 23, 모두 통과):
+  - `test_jpeg_input_to_webp` — JPEG 시드를 만든 뒤 WebP 로 변환. RIFF/WEBP 시그니처 검증
+  - `test_jpeg_input_to_png` — JPEG → PNG. PNG 매직 바이트(`89 50 4E 47`) 검증
+  - `test_jpg_extension_input` — `.jpg` 확장자 입력도 JPEG 디코더에 인식되는지 확인 (입력 측 별칭 회귀 방지)
+- 시드 생성: `create_test_image()` 가 `ImageBuffer::save(path)` 로 확장자 자동 감지하므로 `.jpeg`/`.jpg` 로 저장하면 image 크레이트의 JPEG 인코더가 직접 호출됨 (별도 헬퍼 불필요)
+- 기존 회귀 테스트 (`test_jpeg_output_from_png_input`, `test_jpg_alias_for_jpeg`, `test_batch_mixed_input_formats`) 가 출력 측 / 혼합 배치만 커버하던 공백을 채움
+- TESTING.md / CLAUDE.md 갱신 — 테스트 개수 20 → 23, 향후 후보에서 "JPG/JPEG 단일 입력 명시 케이스" 제거
+
 ### 2026-04-30 — `feat: --threads CLI 옵션 추가` (PR 진행 중)
 
 - `src/main.rs` — `Cli` 에 `threads: Option<usize>` 필드 (`-t/--threads <N>`) 추가. 단일 변환에는 영향 없고 디렉토리 모드일 때만 `convert_directory` 에 전달. 버전 `2.3` → `2.4`
@@ -135,11 +145,12 @@
 - [x] **다중 입출력 포맷 지원 (A안)** — 완료. PNG/JPG/JPEG 출력 + WebP/TIFF/BMP/ICO 입력 추가. 18 테스트 통과.
 - [x] **AVIF 입력 (B안)** — 완료. `avif-decoder` feature 활성화 + `libdav1d-dev` 의존성 추가. 라운드트립을 위해 ravif 인코딩을 8-bit 로 강제. 19 테스트 통과.
 - [x] **`--threads` CLI 옵션** — 완료. `convert_directory` 가 `Option<usize>` 를 받아 local pool 로 scoped 실행. CLI 우선, 환경변수 fallback. 20 테스트 통과.
+- [x] **JPG/JPEG 단일 입력 명시 회귀 테스트** — 완료. 통합 테스트 3개 추가 (jpeg→webp, jpeg→png, .jpg 확장자 입력). 23 테스트 통과.
 - [ ] **`image` 0.25 업그레이드** — 10-bit AVIF 디코딩 지원. breaking change 가 있어 별도 작업. 업그레이드 후 ravif 의 8-bit 강제도 풀어줄 수 있음
-- [ ] **JPG/JPEG 단일 입력 명시 회귀 테스트** — 다중 포맷 PR 에서 혼합 배치로 간접 커버. 명시적 단일 케이스는 별도.
 - [ ] **HEIC 입력** — `libheif` 시스템 의존성 + `libheif-rs` 등 외부 크레이트. 부담 큼.
-- [ ] **대화형 모드에서 `--threads` 질문 추가** — 현재는 CLI 플래그로만 노출.
-- [ ] **대화형 모드 테스트** — `dialoguer` 입력 모킹이 까다로워 우선순위 낮음.
+- [ ] **CLI 인자 검증 강화** — `--threads 0` 거부, `--quality` 1-100 범위 검증. clap `value_parser!.range(...)` 적용.
+- [ ] **대화형 모드 리팩토링 + 단위 테스트 + `--threads` 질문 추가** — `validate_with` 클로저와 default 출력 경로 빌더를 순수 함수로 분리해서 단위 테스트 가능하게 만들고, 그 김에 디렉토리 모드에 threads 질문 단계 추가. dialoguer 자체 모킹은 비용이 커서 보류.
+- [ ] **대화형 모드 통합 테스트** — `dialoguer` 의 `Select` 가 PTY 필요해서 `rexpect` 등 도입 부담. 우선순위 낮음 (위 리팩토링으로 단위 테스트는 우회 커버).
 
 ## 환경 메모
 

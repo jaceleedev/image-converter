@@ -147,6 +147,17 @@ cargo test --release
     - `convert_directory()` 의 `threads: Option<usize>` 인자 검증
     - `None` (기본) 과 `Some(1)` (단일 스레드) 두 모드에서 같은 입력에 대해 같은 성공 개수가 나오는지 확인 (스레드 수에 결과가 영향받지 않아야 함)
 
+21. **`test_jpeg_input_to_webp`**
+    - JPEG 입력을 WebP 로 변환하는 명시적 단일 케이스
+    - 출력 파일이 RIFF/WEBP 시그니처로 시작하는지 검증
+
+22. **`test_jpeg_input_to_png`**
+    - JPEG 입력을 PNG 로 변환 (JPEG 디코더 + PNG 인코더 결합)
+    - 출력이 PNG 매직 바이트(`89 50 4E 47`) 로 시작하는지 검증
+
+23. **`test_jpg_extension_input`**
+    - 입력 측 `.jpg` 확장자도 JPEG 디코더로 정상 인식되는지 확인 (`.jpg`/`.jpeg` 양쪽 별칭 회귀 방지)
+
 ## 테스트 매크로
 
 ### `test_description!`
@@ -205,7 +216,7 @@ fn test_new_feature() {
 
 ## 테스트 커버리지
 
-현재 테스트는 다음 영역을 커버합니다 (총 20개):
+현재 테스트는 다음 영역을 커버합니다 (총 23개):
 - ✅ 파일 크기 포맷팅
 - ✅ WebP / AVIF 단일 변환
 - ✅ 품질 파라미터 검증
@@ -217,10 +228,10 @@ fn test_new_feature() {
 - ✅ TIFF / BMP / AVIF 입력 디코딩
 - ✅ 혼합 입력 포맷 일괄 변환 (PNG + WebP + AVIF + TIFF + BMP → PNG)
 - ✅ 명시적 스레드 수 옵션 (`threads=None` vs `threads=Some(1)` 결과 일관성)
+- ✅ JPG/JPEG 단일 입력 (jpeg→webp, jpeg→png, .jpg 확장자 별칭)
 
 향후 추가할 수 있는 테스트:
 - 10-bit AVIF 입력 디코딩 (`image` 0.25 업그레이드 후)
-- JPG/JPEG 단일 입력 명시 케이스 (현재는 혼합 배치로 간접 커버)
 - 일괄 변환 중 일부 파일이 손상되어 실패할 때의 동작
 - 대용량 이미지 처리
 - 메모리 사용량 테스트
