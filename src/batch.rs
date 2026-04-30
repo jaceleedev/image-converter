@@ -19,13 +19,16 @@ pub struct BatchSummary {
 }
 
 /// 입력 파일이 지원하는 이미지 확장자인지 확인
+/// AVIF 입력은 dav1d 시스템 의존성을 요구해서 별도 PR 로 분리됨
 fn is_supported_image(path: &Path) -> bool {
     matches!(
         path.extension()
             .and_then(|e| e.to_str())
             .map(|s| s.to_lowercase())
             .as_deref(),
-        Some("png" | "jpg" | "jpeg")
+        Some(
+            "png" | "jpg" | "jpeg" | "webp" | "tiff" | "tif" | "bmp" | "ico"
+        )
     )
 }
 
@@ -105,7 +108,7 @@ pub fn convert_directory(
 
     if files.is_empty() {
         println!(
-            "\n{} 변환 가능한 이미지(.png/.jpg/.jpeg)가 없습니다.",
+            "\n{} 변환 가능한 이미지(.png/.jpg/.jpeg/.webp/.tiff/.bmp/.ico)가 없습니다.",
             "⚠️".bright_yellow()
         );
         return Ok(BatchSummary {

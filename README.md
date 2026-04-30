@@ -1,17 +1,29 @@
 # 🖼️ Image Converter
 
-PNG, JPG, JPEG 이미지를 WebP와 AVIF 형식으로 변환하는 고성능 이미지 변환기입니다.
+여러 이미지 포맷을 양방향으로 변환하는 고성능 Rust CLI 도구. WebP/AVIF 압축뿐 아니라 PNG/JPEG 로의 역변환도 지원합니다.
 
 ## ✨ 주요 기능
 
-- **다양한 형식 지원**: PNG, JPG, JPEG → WebP, AVIF
+- **양방향 포맷 변환**: PNG/JPG/JPEG/WebP/TIFF/BMP/ICO → PNG/JPG/WebP/AVIF
 - **단일 파일 + 디렉토리 일괄 변환**: 입력이 디렉토리이면 자동으로 일괄 모드 (rayon 으로 멀티코어 병렬 처리)
 - **재귀 변환**: `--recursive` 옵션으로 하위 폴더까지 한 번에 변환 (구조 그대로 미러링)
 - **대화형 모드**: 단일/디렉토리 모드를 단계별로 안내
 - **용량 비교**: 변환 전후 파일 크기 및 감소율 표시 (배치 모드는 합계까지)
 - **진행 상황 표시**: 실시간 진행률 표시
-- **품질 설정**: 1-100% 품질 조정 가능
+- **품질 설정**: 1-100% 품질 조정 가능 (PNG 는 무손실이라 자동 무시)
 - **아름다운 UI**: 이모티콘과 색상으로 보기 좋은 출력
+
+## 🎯 지원 포맷 매트릭스
+
+| 포맷       | 입력 | 출력 | 비고                                                             |
+| ---------- | :--: | :--: | ---------------------------------------------------------------- |
+| PNG        |  ✅  |  ✅  | 무손실. 출력 시 `--quality` 무시                                 |
+| JPG / JPEG |  ✅  |  ✅  | 알파 채널 미지원 — 자동으로 RGB 변환 후 인코딩                   |
+| WebP       |  ✅  |  ✅  |                                                                  |
+| AVIF       |  ❌  |  ✅  | 입력은 `libdav1d` 시스템 의존성을 요구하므로 추후 별도 PR 로 추가 |
+| TIFF       |  ✅  |  ❌  | 입력만 지원                                                      |
+| BMP        |  ✅  |  ❌  | 입력만 지원                                                      |
+| ICO        |  ✅  |  ❌  | 입력만 지원                                                      |
 
 ## 📦 설치
 
@@ -58,6 +70,15 @@ cargo build --release
 
 # AVIF로 변환 (품질 80%)
 ./target/release/image_converter -i photo.jpg -o photo.avif -f avif -q 80
+
+# 역변환: WebP → PNG (무손실, quality 무시됨)
+./target/release/image_converter -i photo.webp -o photo.png -f png
+
+# JPEG 로 변환 (알파 채널이 있으면 자동 RGB 변환)
+./target/release/image_converter -i icon.png -o icon.jpg -f jpeg -q 85
+
+# TIFF/BMP 입력도 그대로 지원
+./target/release/image_converter -i scan.tiff -o scan.webp -f webp -q 85
 ```
 
 ### 명령줄 모드 - 디렉토리 일괄 변환
@@ -80,8 +101,8 @@ RAYON_NUM_THREADS=4 ./target/release/image_converter -i photos -o photos_webp -f
 - `-I, --interactive`: 대화형 모드 실행
 - `-i, --input <PATH>`: 입력 이미지 파일 또는 디렉토리 경로
 - `-o, --output <PATH>`: 출력 파일 또는 디렉토리 경로
-- `-f, --format <FORMAT>`: 출력 형식 (webp 또는 avif)
-- `-q, --quality <QUALITY>`: 변환 품질 (1-100, 기본값: 90)
+- `-f, --format <FORMAT>`: 출력 형식 (`png`, `jpg`, `jpeg`, `webp`, `avif`)
+- `-q, --quality <QUALITY>`: 변환 품질 1-100 (기본값: 90, **PNG 출력 시 무손실이라 무시됨**)
 - `-r, --recursive`: 디렉토리 입력 시 하위 폴더까지 재귀 변환
 
 ## 💡 예제 출력

@@ -53,7 +53,7 @@ pub fn interactive_mode() -> crate::error::Result<()> {
     };
 
     // 출력 형식 선택
-    let formats = vec!["WebP", "AVIF"];
+    let formats = vec!["WebP", "AVIF", "PNG", "JPEG"];
     let format_selection = Select::with_theme(&ColorfulTheme::default())
         .with_prompt("출력 형식을 선택하세요")
         .items(&formats)
@@ -62,35 +62,43 @@ pub fn interactive_mode() -> crate::error::Result<()> {
 
     let format = formats[format_selection].to_lowercase();
 
-    // 품질 선택
-    let quality_options = vec![
-        "최고 품질 (100%)",
-        "높음 (90%)",
-        "보통 (80%)",
-        "낮음 (70%)",
-        "사용자 지정",
-    ];
-    let quality_selection = Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("변환 품질을 선택하세요")
-        .items(&quality_options)
-        .default(1)
-        .interact()?;
+    // 품질 선택 — PNG 는 무손실이라 의미 없으므로 스킵
+    let quality = if format == "png" {
+        println!(
+            "  {} PNG 는 무손실 포맷이라 품질 설정이 적용되지 않습니다.",
+            "ℹ️".bright_blue()
+        );
+        100.0
+    } else {
+        let quality_options = vec![
+            "최고 품질 (100%)",
+            "높음 (90%)",
+            "보통 (80%)",
+            "낮음 (70%)",
+            "사용자 지정",
+        ];
+        let quality_selection = Select::with_theme(&ColorfulTheme::default())
+            .with_prompt("변환 품질을 선택하세요")
+            .items(&quality_options)
+            .default(1)
+            .interact()?;
 
-    let quality = match quality_selection {
-        0 => 100.0,
-        1 => 90.0,
-        2 => 80.0,
-        3 => 70.0,
-        _ => Input::with_theme(&ColorfulTheme::default())
-            .with_prompt("품질 값을 입력하세요 (1-100)")
-            .validate_with(|input: &String| -> Result<(), &str> {
-                match input.parse::<f32>() {
-                    Ok(q) if q >= 1.0 && q <= 100.0 => Ok(()),
-                    _ => Err("1-100 사이의 숫자를 입력하세요"),
-                }
-            })
-            .interact_text()?
-            .parse::<f32>()?,
+        match quality_selection {
+            0 => 100.0,
+            1 => 90.0,
+            2 => 80.0,
+            3 => 70.0,
+            _ => Input::with_theme(&ColorfulTheme::default())
+                .with_prompt("품질 값을 입력하세요 (1-100)")
+                .validate_with(|input: &String| -> Result<(), &str> {
+                    match input.parse::<f32>() {
+                        Ok(q) if q >= 1.0 && q <= 100.0 => Ok(()),
+                        _ => Err("1-100 사이의 숫자를 입력하세요"),
+                    }
+                })
+                .interact_text()?
+                .parse::<f32>()?,
+        }
     };
 
     // 출력 경로
