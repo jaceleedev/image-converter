@@ -50,9 +50,12 @@ image_converter/
 
 ### `batch.rs` (디렉토리 일괄 변환)
 
-- `convert_directory`: 입력 디렉토리에서 PNG/JPG/JPEG 만 골라 일괄 변환
+- `convert_directory`: 입력 디렉토리에서 PNG/JPG/JPEG 만 골라 **rayon 으로 병렬** 변환
+- 각 파일은 `process_one` 헬퍼가 처리하고 `Option<ConvertStats>` 를 반환 — 한 파일이 실패해도 나머지는 그대로 진행
+- 결과는 직렬 합산하여 `BatchSummary` 통계로 반환
+- 진행률 바 (`indicatif::ProgressBar`) 와 `pb.println` 은 thread-safe (내부 Mutex)
 - 재귀 모드에서 입력 디렉토리 구조를 출력에 미러링
-- 전체 진행률 표시 + 합계 통계 (`BatchSummary`) 반환
+- 스레드 수는 `RAYON_NUM_THREADS` 환경변수로 조절 (기본: CPU 코어 수)
 
 ### `interactive.rs` (사용자 인터페이스)
 
@@ -103,7 +106,7 @@ main.rs
 
 ## 향후 개선 제안
 
-1. **병렬 일괄 변환**: `rayon`으로 배치 모드 멀티코어 활용
+1. **`--threads` CLI 옵션**: 환경변수 외에 명시적 플래그
 2. **설정 모듈**: 품질 프리셋, 기본값 등을 관리하는 `config.rs`
 3. **다국어 지원**: 메시지를 별도 파일로 분리
 
