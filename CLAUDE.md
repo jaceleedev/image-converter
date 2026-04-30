@@ -1,0 +1,111 @@
+# Image Converter
+
+PNG/JPG/JPEG 이미지를 WebP/AVIF 로 변환하는 Rust CLI 도구.
+
+## 프로젝트 개요
+
+- **언어/도구**: Rust (edition 2021)
+- **지원**: 단일 파일 변환 + 디렉토리 일괄 변환 (재귀 옵션)
+- **인터페이스**: 명령줄 모드 (`-i/-o/-f/-q/-r`) + 대화형 모드 (`-I`)
+- **변환 엔진**: WebP는 `webp` 크레이트, AVIF는 `ravif` (rav1e 기반)
+
+세부 사용법은 `README.md` 참고.
+
+## 모듈 구조
+
+```
+src/
+├── main.rs            # CLI 진입점, 단일/일괄 분기
+├── lib.rs             # 공개 API re-export (main.rs도 이 lib을 통해 import)
+├── converter.rs       # 단일 변환. encode_to() 헬퍼를 통해
+│                      # convert_image(UI 포함) / convert_image_silent(조용함) 가
+│                      # 동일 내부를 공유
+├── batch.rs           # 디렉토리 일괄 변환 (walkdir 기반, 재귀 옵션, 구조 미러링)
+├── interactive.rs     # 대화형 모드 (단일/디렉토리 선택 → 옵션 → 실행)
+├── utils.rs           # format_file_size 등 헬퍼
+└── tests/             # 단위 + 통합 테스트 (총 12개)
+```
+
+세부 책임은 `PROJECT_STRUCTURE.md` 참고.
+
+## 시스템 요구사항
+
+- **Rust toolchain** (cargo 1.94+)
+- **nasm** — AVIF 인코더(`rav1e`) 빌드에 필요. WSL/Ubuntu 에서:
+  ```bash
+  sudo apt-get install -y nasm
+  ```
+
+## 개발 명령어
+
+```bash
+# 빌드
+cargo build              # 디버그
+cargo build --release    # 릴리즈 (실제 변환 속도 측정/사용 시)
+
+# 테스트
+cargo test                              # 기본
+cargo test --release                    # 릴리즈 모드 (AVIF 테스트가 빠름)
+cargo test -- --test-threads=1 --nocapture  # 출력 깔끔하게 (TESTING.md 추천)
+cargo test test_batch                   # 일괄 변환 테스트만
+
+# 실행 (릴리즈)
+./target/release/image_converter -I                          # 대화형
+./target/release/image_converter -i a.png -o a.webp -f webp  # 단일
+./target/release/image_converter -i photos -o out -f webp -r # 디렉토리 재귀
+```
+
+## 코드 컨벤션
+
+- **언어**
+  - 사용자 향 출력 (CLI 메시지, 에러, 진행 안내), 주석, 문서, 커밋 메시지: **한국어**
+  - 함수/변수/타입 식별자, 외부 API 이름: 영어
+  - 한국어 안에 영어 고유명사·기술용어·심볼은 그대로 (예: `WebP 인코더 생성 중...`)
+- **이모지**
+  - CLI 출력과 README 예제에서 의미 있는 시각 단서로 사용 (`🚀 시작`, `✅ 성공`, `❌ 실패`, `📁 입력`, `💾 출력`)
+  - 코드 주석/내부 로그에는 사용하지 않음
+- **에러 처리**
+  - 현재 `Result<T, Box<dyn std::error::Error>>` 사용
+  - 향후 `thiserror` 기반 커스텀 에러 타입으로 마이그레이션 예정
+- **테스트 출력**
+  - `test_description!`, `test_step!`, `test_success!` 매크로로 가독성 있는 로그 (정의: `src/tests/test_utils.rs`)
+  - 통합 테스트는 `tempfile` 로 격리
+
+## 커밋 컨벤션
+
+Conventional Commits + 한국어 본문.
+
+```
+<type>: <한국어 제목>
+
+- 변경 내용 1
+- 변경 내용 2
+
+Co-authored-by: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+```
+
+**type**: `feat` · `fix` · `refactor` · `chore` · `docs` · `style` · `test` · `perf` · `ci` · `build` · `revert` · `init` · `remove` · `rename` · `hotfix`
+
+**규칙**
+- 제목은 type 뒤 한국어. 영어 고유명사/기술용어/심볼은 그대로
+- 본문은 `-` 리스트, 백틱으로 코드/심볼 인용 가능
+- 마지막 줄에 `Co-authored-by:` (소문자 `a`/`b`) 트레일러 — Claude Code 기본 템플릿(`Co-Authored-By` 대문자) 대신 이 형식 우선
+- PR squash merge 시 제목 끝에 `(#N)` 자동 부착
+
+## 향후 개선 후보
+
+(우선순위 추정 순)
+
+1. **clap v4 마이그레이션** — 현재 v3.2.x. 문법이 꽤 달라짐 (`App` → `Command` 등)
+2. **커스텀 에러 타입** — `thiserror` 도입, `Box<dyn Error>` 제거
+3. **일괄 변환 병렬화** — `rayon` 으로 멀티코어 활용 (큰 폴더에서 효과 큼)
+4. **다양한 입력 확장자 회귀 테스트** — JPG/JPEG 명시 케이스 추가
+5. **대화형 모드 테스트** — 현재 미커버
+6. **다국어/메시지 분리** — 메시지를 별도 파일/리소스로
+
+## 관련 문서
+
+- `README.md` — 사용자용 사용법, 옵션, 예제 출력
+- `PROJECT_STRUCTURE.md` — 모듈별 책임, 의존성 흐름, 향후 개선 제안
+- `TESTING.md` — 테스트 실행 방법, 테스트 목록 (12개), 매크로 사용법
+- `MEMORY.md` — 작업 컨텍스트, 결정 기록, 진행 중/대기 항목 (세션 간 인계용)
