@@ -631,3 +631,91 @@ fn test_avif_input_to_png() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+
+#[test]
+fn test_jpeg_input_to_webp() -> Result<(), Box<dyn std::error::Error>> {
+    test_description!("JPEG 입력을 WebP 로 변환");
+    test_step!("JPEG 디코더 + WebP 인코더 결합 검증 (단일 입력 명시 케이스)");
+
+    let temp_dir = TempDir::new()?;
+    let jpeg_path = temp_dir.path().join("seed.jpeg");
+    let webp_path = temp_dir.path().join("out.webp");
+
+    // ImageBuffer::save 가 .jpeg 확장자로 JPEG 인코더 호출
+    create_test_image(jpeg_path.to_str().unwrap(), 80, 80)?;
+    test_success!("JPEG 시드 파일 생성");
+
+    convert_image_silent(
+        jpeg_path.to_str().unwrap(),
+        webp_path.to_str().unwrap(),
+        "webp",
+        85.0,
+    )?;
+
+    assert!(webp_path.exists(), "WebP 파일이 생성되어야 함");
+
+    // WebP 시그니처 검증 (RIFF...WEBP)
+    let bytes = fs::read(&webp_path)?;
+    assert_eq!(&bytes[0..4], b"RIFF", "RIFF 매직 바이트 확인");
+    assert_eq!(&bytes[8..12], b"WEBP", "WEBP 시그니처 확인");
+    test_success!("JPEG → WebP 변환 + 시그니처 확인");
+
+    Ok(())
+}
+
+#[test]
+fn test_jpeg_input_to_png() -> Result<(), Box<dyn std::error::Error>> {
+    test_description!("JPEG 입력을 PNG 로 변환");
+    test_step!("JPEG 디코더 + PNG 인코더 결합 검증");
+
+    let temp_dir = TempDir::new()?;
+    let jpeg_path = temp_dir.path().join("seed.jpeg");
+    let png_path = temp_dir.path().join("out.png");
+
+    create_test_image(jpeg_path.to_str().unwrap(), 70, 70)?;
+
+    convert_image_silent(
+        jpeg_path.to_str().unwrap(),
+        png_path.to_str().unwrap(),
+        "png",
+        100.0,
+    )?;
+
+    assert!(png_path.exists(), "PNG 파일이 생성되어야 함");
+
+    let bytes = fs::read(&png_path)?;
+    assert_eq!(
+        &bytes[0..4],
+        &[0x89, 0x50, 0x4E, 0x47],
+        "PNG 매직 바이트 확인"
+    );
+    test_success!("JPEG → PNG 변환 + 시그니처 확인");
+
+    Ok(())
+}
+
+#[test]
+fn test_jpg_extension_input() -> Result<(), Box<dyn std::error::Error>> {
+    test_description!("'.jpg' 확장자 입력이 JPEG 디코더로 인식되는지 테스트");
+    test_step!("입력 측 jpg/jpeg 별칭 동작 확인");
+
+    let temp_dir = TempDir::new()?;
+    let jpg_path = temp_dir.path().join("seed.jpg");
+    let webp_path = temp_dir.path().join("out.webp");
+
+    // .jpg 확장자도 JPEG 인코더로 저장됨
+    create_test_image(jpg_path.to_str().unwrap(), 60, 60)?;
+    test_success!("'.jpg' 시드 파일 생성");
+
+    convert_image_silent(
+        jpg_path.to_str().unwrap(),
+        webp_path.to_str().unwrap(),
+        "webp",
+        85.0,
+    )?;
+
+    assert!(webp_path.exists(), "'.jpg' 입력도 정상 디코딩되어야 함");
+    test_success!("'.jpg' 확장자 입력 디코딩 성공");
+
+    Ok(())
+}
