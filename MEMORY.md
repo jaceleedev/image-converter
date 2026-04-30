@@ -12,6 +12,19 @@
 
 ## 최근 작업 로그
 
+### 2026-04-30 — `feat: AVIF 입력 디코딩 추가 (B안)` (PR 진행 중)
+
+- `Cargo.toml` — `image = { version = "0.24.2", features = ["avif-decoder"] }` 로 변경. `mp4parse` / `dcv-color-primitives` / `dav1d-sys` / `dav1d` 의존성 자동 추가
+- 시스템 의존성 추가: `libdav1d-dev` (apt) / `dav1d` (brew). 빌드 시 `pkg-config` 로 동적 링크
+- `src/batch.rs` `is_supported_image()` 화이트리스트에 `"avif"` 한 단어 추가 + 빈 디렉토리 안내 메시지 갱신
+- **호환성 이슈 + 해결**: `ravif` default 인코딩이 10-bit AVIF 를 만들지만 `image` 0.24 의 AVIF 디코더는 8-bit 만 지원해서 라운드트립이 깨졌음. `src/converter.rs` AVIF 분기에 `.with_bit_depth(BitDepth::Eight)` 추가하여 인코딩을 8-bit 로 강제. `use ravif::BitDepth` import 추가
+- `src/converter.rs` 의 AVIF 인코더 호출에 8-bit 강제 결정 이유 한 줄 주석
+- `ravif::Encoder::with_depth(Some(8))` 는 deprecated 됐고 `with_bit_depth(BitDepth::Eight)` 가 신 API
+- 통합 테스트 1개 추가 + 1개 갱신 (총 18 → 19, 모두 통과):
+  - 신규 `test_avif_input_to_png` — PNG 시드를 AVIF 로 인코딩 → 다시 PNG 로 디코딩하는 라운드트립
+  - 갱신 `test_batch_mixed_input_formats` — 입력 포맷 4개 (PNG/WebP/TIFF/BMP) → 5개 (+ AVIF)
+- README/CLAUDE/PROJECT_STRUCTURE/TESTING 갱신 — 매트릭스 표 AVIF 입력 ✅, 시스템 요구사항에 `libdav1d-dev` 추가, AVIF 8-bit 한계 명시, 향후 후보에 `image` 0.25 업그레이드 추가
+
 ### 2026-04-30 — `feat: 다중 입출력 포맷 지원 (역변환 + 추가 입력)` (PR 진행 중)
 
 - `Cargo.toml` **변경 없음** — 모든 신규 포맷이 `image` 0.24.9 의 default features 로 이미 가능
@@ -79,7 +92,9 @@
 
 ## 결정 기록
 
-- **A안 채택 (AVIF 입력 제외)** — `image` 크레이트의 `avif-decoder` feature 는 `dav1d` 시스템 라이브러리 (`libdav1d-dev` apt / `dav1d` brew) 를 요구. 현재 `nasm` 한 가지만 시스템 의존성으로 잡혀 있는 깔끔함을 유지하기 위해 1단계에서 AVIF 입력만 제외. WebP 디코딩은 `image` 0.24 default features 에 포함되어 Cargo.toml 변경 없이 동작.
+- **AVIF 인코딩을 8-bit 로 강제 (`with_bit_depth(BitDepth::Eight)`)** — `ravif` default 가 10-bit (Auto = Ten) 인데 `image` 0.24 AVIF 디코더는 8-bit 만 지원. 강제 안 하면 우리가 만든 AVIF 를 우리가 디코딩 못 하는 라운드트립 모순 발생. 일반 사진 변환 용도에서는 8-bit 로도 충분하고 호환성(타 뷰어/디코더) 도 더 좋음. 단점은 HDR / 부드러운 그라디언트 케이스에서 약간 손해 — `image` 0.25 업그레이드로 10-bit 디코딩 지원되면 default 풀어줄 후보.
+- **외부 10-bit AVIF 입력은 명시적으로 미지원** — `image` 0.24 의 디코더 한계. 사용자가 다른 도구로 만든 10-bit AVIF 를 입력으로 쓰면 `Only 8 bit depth is supported but was 10` 에러. README 매트릭스 표 비고에 한 줄 명시. `image` 0.25 업그레이드를 향후 후보로 정리.
+- **A안 채택 (1단계에서 AVIF 입력 제외)** — `image` 크레이트의 `avif-decoder` feature 는 `dav1d` 시스템 라이브러리 (`libdav1d-dev` apt / `dav1d` brew) 를 요구. 1단계는 시스템 의존성 추가 없는 작업으로 분리하고, B안 (AVIF 입력) 은 별도 PR 로 진행해 의존성 변경의 의도를 명확히 함.
 - **PNG quality 는 조용히 무시** — `encode_to("png", ...)` 가 quality 인자를 받지만 사용하지 않음. CLI 와 대화형 모드에서 사용자에게 "무손실이라 적용 안 됨" 한 줄 안내 + `-q` doc 주석에도 명시. 에러로 거부하지 않는 이유는 배치 모드에서 한 quality 값을 여러 출력 포맷에 공통 적용하는 흐름을 깨지 않기 위함.
 - **JPEG 출력 시 `to_rgb8()` 로 명시적 RGB 다운샘플** — `image` 의 `write_to(..., ImageOutputFormat::Jpeg(q))` 는 RGBA 입력도 받지만 동작이 버전에 따라 다를 수 있음. 명시적으로 `DynamicImage::ImageRgb8(img.to_rgb8())` 로 변환 후 인코딩하여 알파 채널 처리를 확정적으로 만듦. 알파 픽셀은 검정 배경 위에 합성된 형태로 처리됨 (image 크레이트 기본 동작).
 - **`jpg` 와 `jpeg` 를 같은 분기로** — `match` 의 or-pattern (`"jpg" | "jpeg"`) 으로 한 분기에서 처리. 사용자 친화적이면서 코드 중복 없음. 출력 확장자도 사용자가 명시한 그대로 사용 (둘 다 동일 JPEG 컨테이너).
@@ -104,13 +119,17 @@
 - [x] **커스텀 에러 타입 (`thiserror`)** — 완료. `ConverterError` enum + 8 variant.
 - [x] **일괄 변환 병렬화 (`rayon`)** — 완료. 16코어에서 8장 AVIF 변환 8.3배 ↑.
 - [x] **다중 입출력 포맷 지원 (A안)** — 완료. PNG/JPG/JPEG 출력 + WebP/TIFF/BMP/ICO 입력 추가. 18 테스트 통과.
-- [ ] **AVIF 입력 (B안 후속 PR)** — `Cargo.toml` 에 `image = { ..., features = ["avif-decoder"] }` + `is_supported_image()` 화이트리스트에 `"avif"` 한 단어 + `libdav1d` 시스템 의존성 안내. 매우 작은 PR.
+- [x] **AVIF 입력 (B안)** — 완료. `avif-decoder` feature 활성화 + `libdav1d-dev` 의존성 추가. 라운드트립을 위해 ravif 인코딩을 8-bit 로 강제. 19 테스트 통과.
 - [ ] **`--threads` CLI 옵션** — 현재는 `RAYON_NUM_THREADS` 환경변수만. 작은 추가 작업.
+- [ ] **`image` 0.25 업그레이드** — 10-bit AVIF 디코딩 지원. breaking change 가 있어 별도 작업. 업그레이드 후 ravif 의 8-bit 강제도 풀어줄 수 있음
 - [ ] **JPG/JPEG 단일 입력 명시 회귀 테스트** — 다중 포맷 PR 에서 혼합 배치로 간접 커버. 명시적 단일 케이스는 별도.
 - [ ] **HEIC 입력** — `libheif` 시스템 의존성 + `libheif-rs` 등 외부 크레이트. 부담 큼.
 - [ ] **대화형 모드 테스트** — `dialoguer` 입력 모킹이 까다로워 우선순위 낮음.
 
 ## 환경 메모
 
-- WSL2 (Ubuntu) 에서 빌드 시 `nasm` 패키지 필요 (rav1e/AVIF). `sudo apt-get install -y nasm`.
-- 새 장비 setup 시 `cargo build --release` 가 nasm 없이 실패하면 위 메시지로 안내됨.
+- 빌드 시 두 시스템 라이브러리가 필요:
+  - `nasm` — rav1e (AVIF 인코딩) 빌드용
+  - `libdav1d-dev` (apt) / `dav1d` (brew) — dav1d-sys (AVIF 디코딩) 빌드용. `pkg-config` 로 동적 링크
+- 한 줄 설치: `sudo apt-get install -y nasm libdav1d-dev` (Ubuntu/WSL) / `brew install nasm dav1d` (macOS)
+- 빌드 실패 시그널: `Package dav1d was not found in the pkg-config search path` 는 `libdav1d-dev` 누락. nasm 누락은 rav1e 컴파일 단계에서 명확한 에러로 안내됨.

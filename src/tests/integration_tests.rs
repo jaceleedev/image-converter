@@ -485,7 +485,7 @@ fn test_bmp_input_to_jpeg() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn test_batch_mixed_input_formats() -> Result<(), Box<dyn std::error::Error>> {
     test_description!("일괄 변환에서 다양한 입력 포맷 혼합 테스트");
-    test_step!("PNG + WebP + TIFF + BMP 가 한 디렉토리에 있을 때 모두 PNG 로 변환되는지");
+    test_step!("PNG + WebP + AVIF + TIFF + BMP 가 한 디렉토리에 있을 때 모두 PNG 로 변환되는지");
 
     let temp_dir = TempDir::new()?;
     let input_dir = temp_dir.path().join("mixed_input");
@@ -497,7 +497,7 @@ fn test_batch_mixed_input_formats() -> Result<(), Box<dyn std::error::Error>> {
     create_test_image(input_dir.join("b.tiff").to_str().unwrap(), 50, 50)?;
     create_test_image(input_dir.join("c.bmp").to_str().unwrap(), 50, 50)?;
 
-    // WebP 는 별도 webp 크레이트로 인코딩 — 임시 PNG 를 거쳐 생성
+    // WebP / AVIF 는 별도 인코더라 PNG 시드를 거쳐 생성
     let temp_png = temp_dir.path().join("temp_seed.png");
     create_test_image(temp_png.to_str().unwrap(), 50, 50)?;
     convert_image_silent(
@@ -506,7 +506,13 @@ fn test_batch_mixed_input_formats() -> Result<(), Box<dyn std::error::Error>> {
         "webp",
         90.0,
     )?;
-    test_success!("혼합 입력 4개 (PNG/TIFF/BMP/WebP) 준비 완료");
+    convert_image_silent(
+        temp_png.to_str().unwrap(),
+        input_dir.join("e.avif").to_str().unwrap(),
+        "avif",
+        85.0,
+    )?;
+    test_success!("혼합 입력 5개 (PNG/TIFF/BMP/WebP/AVIF) 준비 완료");
 
     let summary = convert_directory(
         input_dir.to_str().unwrap(),
@@ -516,13 +522,55 @@ fn test_batch_mixed_input_formats() -> Result<(), Box<dyn std::error::Error>> {
         false,
     )?;
 
-    assert_eq!(summary.total_files, 4, "4개 파일이 처리 대상");
-    assert_eq!(summary.succeeded, 4, "4개 모두 성공");
+    assert_eq!(summary.total_files, 5, "5개 파일이 처리 대상");
+    assert_eq!(summary.succeeded, 5, "5개 모두 성공");
     assert!(output_dir.join("a.png").exists());
     assert!(output_dir.join("b.png").exists());
     assert!(output_dir.join("c.png").exists());
     assert!(output_dir.join("d.png").exists());
-    test_success!("4종 입력 포맷 모두 PNG 로 변환 성공");
+    assert!(output_dir.join("e.png").exists());
+    test_success!("5종 입력 포맷 모두 PNG 로 변환 성공");
+
+    Ok(())
+}
+
+#[test]
+fn test_avif_input_to_png() -> Result<(), Box<dyn std::error::Error>> {
+    test_description!("AVIF → PNG 역변환 테스트");
+    test_step!("AVIF 파일을 PNG 로 디코딩 (avif-decoder feature + dav1d)");
+
+    let temp_dir = TempDir::new()?;
+    let png_seed = temp_dir.path().join("seed.png");
+    let avif_path = temp_dir.path().join("intermediate.avif");
+    let restored_path = temp_dir.path().join("restored.png");
+
+    // 1) PNG 시드 → 2) AVIF 인코딩 → 3) AVIF 입력을 다시 PNG 로 디코딩
+    create_test_image(png_seed.to_str().unwrap(), 60, 60)?;
+    convert_image_silent(
+        png_seed.to_str().unwrap(),
+        avif_path.to_str().unwrap(),
+        "avif",
+        85.0,
+    )?;
+    test_success!("AVIF 중간 파일 생성");
+
+    convert_image_silent(
+        avif_path.to_str().unwrap(),
+        restored_path.to_str().unwrap(),
+        "png",
+        90.0,
+    )?;
+
+    assert!(restored_path.exists(), "복원된 PNG 파일이 생성되어야 함");
+
+    // PNG 시그니처 검증
+    let bytes = fs::read(&restored_path)?;
+    assert_eq!(
+        &bytes[0..4],
+        &[0x89, 0x50, 0x4E, 0x47],
+        "PNG 매직 바이트 확인"
+    );
+    test_success!("AVIF → PNG 역변환 + 시그니처 확인");
 
     Ok(())
 }

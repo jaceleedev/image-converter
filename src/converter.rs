@@ -1,7 +1,7 @@
 use colored::*;
 use image::{DynamicImage, GenericImageView, ImageOutputFormat};
 use indicatif::{ProgressBar, ProgressStyle};
-use ravif::{Encoder as AvifEncoder, Img, RGBA8};
+use ravif::{BitDepth, Encoder as AvifEncoder, Img, RGBA8};
 use std::fs;
 use std::io::Cursor;
 use webp::Encoder as WebpEncoder;
@@ -33,7 +33,12 @@ fn encode_to(img: &DynamicImage, format: &str, quality: f32) -> Result<Vec<u8>> 
                 .pixels()
                 .map(|p| RGBA8::new(p[0], p[1], p[2], p[3]))
                 .collect();
-            let encoder = AvifEncoder::new().with_quality(quality).with_speed(4);
+            // 8-bit depth 로 강제 — image 0.24 의 AVIF 디코더가 8-bit 만 지원하므로
+            // 라운드트립(역변환) 호환성을 위해 ravif default(10-bit) 대신 8-bit 사용
+            let encoder = AvifEncoder::new()
+                .with_quality(quality)
+                .with_speed(4)
+                .with_bit_depth(BitDepth::Eight);
             let res = encoder.encode_rgba(Img::new(&pixels, width as usize, height as usize))?;
             Ok(res.avif_file)
         }
