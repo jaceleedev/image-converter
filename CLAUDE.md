@@ -29,7 +29,7 @@ src/
 ├── interactive.rs     # 대화형 모드 (단일/디렉토리 선택 → 출력 포맷 → 옵션 → 실행).
 │                      # PNG 출력 시 quality 단계는 자동 스킵
 ├── utils.rs           # format_file_size 등 헬퍼
-└── tests/             # 단위 + 통합 테스트 (총 29개)
+└── tests/             # 단위 + 통합 테스트 (총 41개)
 ```
 
 세부 책임은 `PROJECT_STRUCTURE.md` 참고.
@@ -115,9 +115,8 @@ Co-authored-by: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 
 1. **`image` 0.25 업그레이드** — 0.24 의 AVIF 디코더가 8-bit 만 지원하는 한계 해소 (10-bit AVIF 입력 지원). breaking change 가 있어 별도 작업
 2. **HEIC 입력** — iPhone 사진 변환용. `libheif` 시스템 의존성 + `libheif-rs` 등 외부 크레이트 도입 필요
-3. **대화형 모드에서 `--threads` 질문** — 현재는 CLI 플래그로만 노출, 대화형 모드는 default 사용
-4. **대화형 모드 테스트** — 현재 미커버
-5. **다국어/메시지 분리** — 메시지를 별도 파일/리소스로
+3. **대화형 모드 통합 테스트** — 검증/경로 빌더는 단위 테스트로 커버됨. `dialoguer::Select` 가 raw TTY 라 `rexpect` 등 PTY 도구 필요
+4. **다국어/메시지 분리** — 메시지를 별도 파일/리소스로
 
 ## 관련 문서
 

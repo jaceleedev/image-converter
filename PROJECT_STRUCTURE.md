@@ -66,9 +66,10 @@ image_converter/
 
 - 대화형 모드 구현
 - 단일 파일 / 디렉토리 모드 선택
-- 디렉토리 모드에서 재귀 옵션 질문
+- 디렉토리 모드에서 재귀 옵션 질문 + 스레드 수 질문 (빈 입력 = `None` = rayon default)
 - 출력 포맷 선택지: WebP / AVIF / PNG / JPEG
 - PNG 출력 선택 시 quality 단계는 자동으로 스킵 (무손실 포맷이라 의미 없음)
+- 검증 클로저와 디폴트 출력 경로 빌더는 순수 함수로 분리 (`validate_input_path`, `validate_quality_input`, `validate_threads_input`, `default_output_path_for_file`, `default_output_path_for_dir`) — `#[cfg(test)] mod tests` 에서 단위 테스트
 - 단계별 사용자 입력 처리
 
 ### `utils.rs` (공통 유틸리티)
@@ -115,7 +116,7 @@ main.rs
 
 1. **`image` 0.25 업그레이드**: 10-bit AVIF 디코딩 지원. breaking change 가 있어 별도 작업
 2. **HEIC 입력**: iPhone 사진 변환용. `libheif` 시스템 의존성 + 외부 크레이트
-3. **대화형 모드에서 스레드 수 질문**: 현재는 CLI 플래그로만 노출
+3. **대화형 모드 통합 테스트**: 현재는 검증/경로 빌더 단위 테스트만. `dialoguer` 의 `Select` 가 raw TTY 모드라 `rexpect` 등 PTY 도구 필요
 4. **설정 모듈**: 품질 프리셋, 기본값 등을 관리하는 `config.rs`
 5. **다국어 지원**: 메시지를 별도 파일로 분리
 
