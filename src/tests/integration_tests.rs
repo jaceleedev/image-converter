@@ -146,9 +146,14 @@ fn test_invalid_format() {
     assert!(result.is_err(), "지원하지 않는 형식은 에러를 반환해야 함");
     test_success!("예상대로 에러 발생");
     
-    // 에러 메시지 확인
-    assert_eq!(result.unwrap_err().to_string(), "지원하지 않는 포맷입니다");
-    test_success!("올바른 에러 메시지 확인");
+    // 에러 메시지 확인 (포맷명까지 포함되어야 함)
+    let err_msg = result.unwrap_err().to_string();
+    assert!(
+        err_msg.contains("지원하지 않는 포맷입니다") && err_msg.contains("xyz"),
+        "에러 메시지가 예상과 다름: {}",
+        err_msg
+    );
+    test_success!("올바른 에러 메시지 확인 ({})", err_msg);
 }
 
 #[test]

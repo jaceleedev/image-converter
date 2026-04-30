@@ -17,6 +17,7 @@ PNG/JPG/JPEG 이미지를 WebP/AVIF 로 변환하는 Rust CLI 도구.
 src/
 ├── main.rs            # CLI 진입점, 단일/일괄 분기
 ├── lib.rs             # 공개 API re-export (main.rs도 이 lib을 통해 import)
+├── error.rs           # ConverterError + Result 타입 (thiserror 기반)
 ├── converter.rs       # 단일 변환. encode_to() 헬퍼를 통해
 │                      # convert_image(UI 포함) / convert_image_silent(조용함) 가
 │                      # 동일 내부를 공유
@@ -65,8 +66,10 @@ cargo test test_batch                   # 일괄 변환 테스트만
   - CLI 출력과 README 예제에서 의미 있는 시각 단서로 사용 (`🚀 시작`, `✅ 성공`, `❌ 실패`, `📁 입력`, `💾 출력`)
   - 코드 주석/내부 로그에는 사용하지 않음
 - **에러 처리**
-  - 현재 `Result<T, Box<dyn std::error::Error>>` 사용
-  - 향후 `thiserror` 기반 커스텀 에러 타입으로 마이그레이션 예정
+  - `src/error.rs` 의 `ConverterError` enum (thiserror 기반) + `Result<T>` 별칭 사용
+  - 외부 크레이트 에러(io, image, dialoguer, ravif, ParseFloat) 는 `#[from]` 으로 자동 변환
+  - WebP 인코더의 `&str` 에러는 `to_string()` 으로 String 변환 후 `Webp(String)` variant
+  - 사용자 입력성 에러는 `UnsupportedFormat(String)`, `InvalidPath(String)` 등 명시적 variant — Display 메시지에 컨텍스트 포함
 - **테스트 출력**
   - `test_description!`, `test_step!`, `test_success!` 매크로로 가독성 있는 로그 (정의: `src/tests/test_utils.rs`)
   - 통합 테스트는 `tempfile` 로 격리
@@ -96,11 +99,10 @@ Co-authored-by: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 
 (우선순위 추정 순)
 
-1. **커스텀 에러 타입** — `thiserror` 도입, `Box<dyn Error>` 제거
-2. **일괄 변환 병렬화** — `rayon` 으로 멀티코어 활용 (큰 폴더에서 효과 큼)
-3. **다양한 입력 확장자 회귀 테스트** — JPG/JPEG 명시 케이스 추가
-4. **대화형 모드 테스트** — 현재 미커버
-5. **다국어/메시지 분리** — 메시지를 별도 파일/리소스로
+1. **일괄 변환 병렬화** — `rayon` 으로 멀티코어 활용 (큰 폴더에서 효과 큼)
+2. **다양한 입력 확장자 회귀 테스트** — JPG/JPEG 명시 케이스 추가
+3. **대화형 모드 테스트** — 현재 미커버
+4. **다국어/메시지 분리** — 메시지를 별도 파일/리소스로
 
 ## 관련 문서
 

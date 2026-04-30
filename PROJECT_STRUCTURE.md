@@ -12,6 +12,7 @@ image_converter/
 └── src/
     ├── main.rs             # 진입점 - CLI 인자 처리, 단일/일괄 분기
     ├── lib.rs              # 라이브러리 루트 - 공개 API re-export
+    ├── error.rs            # ConverterError + Result 타입 (thiserror 기반)
     ├── converter.rs        # 단일 파일 변환 + 인코딩 헬퍼
     ├── batch.rs            # 디렉토리 일괄 변환 (재귀 옵션)
     ├── interactive.rs      # 대화형 모드 (단일/디렉토리)
@@ -30,7 +31,15 @@ image_converter/
 - CLI 인자 파싱 (clap 사용)
 - 대화형/명령줄 모드 분기
 - 입력 경로 타입(파일/디렉토리)에 따라 단일/일괄 변환 분기
-- 에러 처리 및 종료
+- 에러 처리 및 종료 — `ConverterError` 의 `Display` 로 메시지 출력
+
+### `error.rs` (에러 타입)
+
+- `ConverterError` enum + `Result<T>` 별칭
+- thiserror 기반, 외부 크레이트 에러(io, image, dialoguer, ravif, ParseFloat) 는 `#[from]` 으로 자동 변환
+- WebP 인코더의 `&str` 에러는 별도 `Webp(String)` variant 로 매핑 (소유권 확보)
+- 사용자 입력성 에러는 `UnsupportedFormat`, `InvalidPath` 등 컨텍스트가 담긴 variant
+- Display 메시지는 모두 한국어 (`"입출력 오류: ..."`, `"지원하지 않는 포맷입니다: xyz"` 등)
 
 ### `converter.rs` (단일 변환 비즈니스 로직)
 
@@ -94,10 +103,8 @@ main.rs
 
 ## 향후 개선 제안
 
-1. **에러 타입 정의**: `Result<T, Box<dyn Error>>`를 커스텀 에러 타입으로 (`thiserror` 도입)
-2. **clap v4 마이그레이션**: 현재 v3.2.x 사용 중
-3. **병렬 일괄 변환**: `rayon`으로 배치 모드 멀티코어 활용
-4. **설정 모듈**: 품질 프리셋, 기본값 등을 관리하는 `config.rs`
-5. **다국어 지원**: 메시지를 별도 파일로 분리
+1. **병렬 일괄 변환**: `rayon`으로 배치 모드 멀티코어 활용
+2. **설정 모듈**: 품질 프리셋, 기본값 등을 관리하는 `config.rs`
+3. **다국어 지원**: 메시지를 별도 파일로 분리
 
 이 구조는 현재 프로젝트 규모에 적합하며, 향후 확장에도 대응할 수 있습니다.

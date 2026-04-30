@@ -12,7 +12,19 @@
 
 ## 최근 작업 로그
 
-### 2026-04-30 — `refactor: clap v3 → v4 마이그레이션` (PR 진행 중)
+### 2026-04-30 — `refactor: thiserror 기반 ConverterError 도입` (PR 진행 중)
+
+- 신규 `src/error.rs` — `ConverterError` enum + `Result<T>` 별칭. variant: `Io` / `Image` / `Webp(String)` / `Avif` / `UnsupportedFormat(String)` / `InvalidPath(String)` / `Dialog` / `QualityParse`
+- 외부 크레이트 에러는 `#[from]` 으로 자동 변환 (`std::io::Error`, `image::ImageError`, `ravif::Error`, `dialoguer::Error`, `std::num::ParseFloatError`). webp 의 `&str` 에러만 수동 `to_string()` 매핑
+- `converter.rs` / `batch.rs` / `interactive.rs` 시그니처를 `Result<T, Box<dyn Error>>` → `Result<T>` 로 통일
+- `interactive.rs` 의 dialoguer `validate_with` 클로저는 `Result<(), &str>` 시그니처를 강제하므로, 이름 충돌 회피 위해 시그니처에 `crate::error::Result<()>` fully qualified 사용 (use 제거)
+- 에러 메시지가 컨텍스트를 포함하는 형태로 풍부해짐 (`"지원하지 않는 포맷입니다: xyz"`, `"입출력 오류: No such file or directory"` 등)
+- `test_invalid_format` 의 메시지 비교를 `assert_eq!` → `contains` 검증으로 갱신 (포맷명까지 검증 추가)
+- 12개 테스트 그대로 통과, 단일/배치/재귀 CLI 동작 회귀 없음
+- `Cargo.toml` 에 `thiserror = "1.0"` 추가
+- `CLAUDE.md` / `PROJECT_STRUCTURE.md` 갱신
+
+### 2026-04-30 — `refactor: clap v3 → v4 마이그레이션` (PR #7, merged)
 
 - `Cargo.toml` — `clap = "3.2.8"` → `clap = { version = "4.5", features = ["derive"] }`
 - `src/main.rs` — Builder 패턴(`App::new(...).arg(...)`)을 `#[derive(Parser)]` 구조체로 전면 재작성. 도움말은 doc 주석으로, `quality` 는 `f32` 자동 파싱(`.parse::<f32>().expect()` 제거), `interactive`/`recursive` 는 `bool` 자동 매핑
@@ -34,6 +46,9 @@
 
 ## 결정 기록
 
+- **`crate::error::Result` 를 1-generic alias 로 정의** — `pub type Result<T> = std::result::Result<T, ConverterError>`. 코드량은 줄지만 dialoguer 의 `validate_with` 클로저(`Result<(), &str>` 시그니처) 와 이름이 충돌함. interactive.rs 에서는 use 를 제거하고 시그니처에 `crate::error::Result<()>` fully qualified 사용으로 회피.
+- **WebP 에러는 `String` 으로 owned 변환** — `webp::Encoder::from_image` 가 `Result<Self, &str>` 를 반환. `&str` 은 `#[from]` 대상이 안 되고, `'static` 이 아니라 그대로 들고 있을 수도 없음. `Webp(String)` variant 로 받고 `.to_string()` 으로 매핑.
+- **`UnsupportedFormat` 에 포맷 문자열 포함** — 기존 `"지원하지 않는 포맷입니다"` 정적 메시지를 `"지원하지 않는 포맷입니다: {0}"` 로 변경. 디버그/사용자 경험 모두 향상되지만 기존 `assert_eq!` 테스트가 깨짐 → `contains` 검증으로 함께 갱신.
 - **clap v4 derive 매크로 채택** — 단순 builder 버전 업이 아니라 derive 로 전환. 코드 30% 감소, doc 주석이 자동으로 도움말이 됨, 타입 자동 파싱(특히 `quality: f32`). 변경 범위는 `main.rs` + `Cargo.toml` 로 한정되어 안전했음.
 - **`required_unless_present = "interactive"` 패턴 유지** — derive 에서도 동일한 의미. `Option<String>` + 비대화형 모드에서 `expect()` 로 추출. `ArgGroup` 도입은 과한 복잡도라 보류.
 - **`walkdir` 채택** — 재귀+필터 조합을 std `read_dir` 로만 처리하면 verbose 함. 비재귀에도 `WalkDir::new(path).max_depth(1)` 로 통일하여 코드 분기 단순화.
@@ -44,8 +59,8 @@
 ## 진행 중 / 대기
 
 - [x] **clap v4 마이그레이션** — 완료. derive 매크로로 전환.
-- [ ] **커스텀 에러 타입 (`thiserror`)** — 다음 PR 후보. `Box<dyn Error>` 제거, `converter`/`batch` 시그니처 갱신. 변경 범위는 중간.
-- [ ] **일괄 변환 병렬화 (`rayon`)** — 위 끝난 후. 진행률 바를 멀티스레드 친화적으로 바꾸는 작업이 같이 필요.
+- [x] **커스텀 에러 타입 (`thiserror`)** — 완료. `ConverterError` enum + 8 variant.
+- [ ] **일괄 변환 병렬화 (`rayon`)** — 다음 PR 후보. 진행률 바를 멀티스레드 친화적으로 바꾸는 작업이 같이 필요.
 - [ ] **JPG/JPEG 입력 명시 회귀 테스트** — 현재 PNG 만 명시 테스트. 작은 추가 작업.
 - [ ] **대화형 모드 테스트** — `dialoguer` 입력 모킹이 까다로워 우선순위 낮음.
 
