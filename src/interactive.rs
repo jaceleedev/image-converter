@@ -6,7 +6,7 @@ use crate::batch::convert_directory;
 use crate::converter::convert_image;
 
 /// 대화형 모드로 이미지 변환
-pub fn interactive_mode() -> Result<(), Box<dyn std::error::Error>> {
+pub fn interactive_mode() -> crate::error::Result<()> {
     println!("{}", "🖼️  이미지 변환기 - 대화형 모드".bright_cyan().bold());
     println!("{}", "================================".bright_cyan());
 

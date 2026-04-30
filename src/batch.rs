@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
 use crate::converter::convert_image_silent;
+use crate::error::{ConverterError, Result};
 use crate::utils::format_file_size;
 
 /// 디렉토리 변환 결과 합계
@@ -66,12 +67,15 @@ pub fn convert_directory(
     format: &str,
     quality: f32,
     recursive: bool,
-) -> Result<BatchSummary, Box<dyn std::error::Error>> {
+) -> Result<BatchSummary> {
     let input_path = Path::new(input_dir);
     let output_path = Path::new(output_dir);
 
     if !input_path.is_dir() {
-        return Err(format!("입력 경로가 디렉토리가 아닙니다: {}", input_dir).into());
+        return Err(ConverterError::InvalidPath(format!(
+            "입력 경로가 디렉토리가 아닙니다: {}",
+            input_dir
+        )));
     }
     std::fs::create_dir_all(output_path)?;
 
@@ -154,8 +158,10 @@ pub fn convert_directory(
         }
 
         match convert_image_silent(
-            file.to_str().ok_or("입력 경로 인코딩 오류")?,
-            dest.to_str().ok_or("출력 경로 인코딩 오류")?,
+            file.to_str()
+                .ok_or_else(|| ConverterError::InvalidPath(format!("{}", file.display())))?,
+            dest.to_str()
+                .ok_or_else(|| ConverterError::InvalidPath(format!("{}", dest.display())))?,
             format,
             quality,
         ) {

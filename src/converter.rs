@@ -5,6 +5,8 @@ use ravif::{Encoder as AvifEncoder, Img, RGBA8};
 use std::fs;
 use webp::Encoder as WebpEncoder;
 
+use crate::error::{ConverterError, Result};
+
 /// 단일 이미지 변환 결과 통계
 #[derive(Debug)]
 pub struct ConvertStats {
@@ -15,14 +17,11 @@ pub struct ConvertStats {
 }
 
 /// 메모리에 로드된 이미지를 지정한 포맷으로 인코딩
-fn encode_to(
-    img: &DynamicImage,
-    format: &str,
-    quality: f32,
-) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+fn encode_to(img: &DynamicImage, format: &str, quality: f32) -> Result<Vec<u8>> {
     match format {
         "webp" => {
-            let encoder = WebpEncoder::from_image(img)?;
+            let encoder = WebpEncoder::from_image(img)
+                .map_err(|e| ConverterError::Webp(e.to_string()))?;
             let data = encoder.encode(quality);
             Ok(data.to_vec())
         }
@@ -37,7 +36,7 @@ fn encode_to(
             let res = encoder.encode_rgba(Img::new(&pixels, width as usize, height as usize))?;
             Ok(res.avif_file)
         }
-        _ => Err("지원하지 않는 포맷입니다".into()),
+        _ => Err(ConverterError::UnsupportedFormat(format.to_string())),
     }
 }
 
@@ -47,7 +46,7 @@ pub fn convert_image_silent(
     output_path: &str,
     format: &str,
     quality: f32,
-) -> Result<ConvertStats, Box<dyn std::error::Error>> {
+) -> Result<ConvertStats> {
     let input_size = fs::metadata(input_path)?.len();
     let img = image::open(input_path)?;
     let (width, height) = img.dimensions();
@@ -68,7 +67,7 @@ pub fn convert_image(
     output_path: &str,
     format: &str,
     quality: f32,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<()> {
     println!("\n{} 이미지 변환을 시작합니다...", "🚀".bright_blue());
 
     let pb = ProgressBar::new(100);

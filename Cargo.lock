@@ -523,6 +523,7 @@ dependencies = [
  "indicatif",
  "ravif",
  "tempfile",
+ "thiserror 1.0.69",
  "walkdir",
  "webp",
 ]
