@@ -4,9 +4,9 @@ use std::path::Path;
 
 use image_converter::{convert_directory, convert_image, interactive::interactive_mode};
 
-/// PNG/JPG/JPEG/WebP/TIFF/BMP/ICO 이미지를 PNG/JPG/WebP/AVIF 로 변환합니다 (단일 파일 + 디렉토리 일괄)
+/// PNG/JPG/JPEG/WebP/AVIF/TIFF/BMP/ICO 이미지를 PNG/JPG/WebP/AVIF 로 변환합니다 (단일 파일 + 디렉토리 일괄)
 #[derive(Parser, Debug)]
-#[command(name = "image_converter", version = "2.3", about, long_about = None)]
+#[command(name = "image_converter", version = "2.4", about, long_about = None)]
 struct Cli {
     /// 대화형 모드로 실행
     #[arg(short = 'I', long)]
@@ -31,6 +31,10 @@ struct Cli {
     /// 디렉토리 입력 시 하위 폴더까지 재귀 변환
     #[arg(short, long)]
     recursive: bool,
+
+    /// 디렉토리 모드에서 사용할 스레드 수 (미지정 시 RAYON_NUM_THREADS 또는 CPU 코어 수)
+    #[arg(short, long, value_name = "N")]
+    threads: Option<usize>,
 }
 
 fn main() {
@@ -44,7 +48,15 @@ fn main() {
         let format = cli.format.expect("format은 비대화형 모드에서 필수입니다");
 
         if Path::new(&input).is_dir() {
-            convert_directory(&input, &output, &format, cli.quality, cli.recursive).map(|_| ())
+            convert_directory(
+                &input,
+                &output,
+                &format,
+                cli.quality,
+                cli.recursive,
+                cli.threads,
+            )
+            .map(|_| ())
         } else {
             convert_image(&input, &output, &format, cli.quality)
         }

@@ -4,7 +4,7 @@
 
 ## ✨ 주요 기능
 
-- **양방향 포맷 변환**: PNG/JPG/JPEG/WebP/TIFF/BMP/ICO → PNG/JPG/WebP/AVIF
+- **양방향 포맷 변환**: PNG/JPG/JPEG/WebP/AVIF/TIFF/BMP/ICO → PNG/JPG/WebP/AVIF
 - **단일 파일 + 디렉토리 일괄 변환**: 입력이 디렉토리이면 자동으로 일괄 모드 (rayon 으로 멀티코어 병렬 처리)
 - **재귀 변환**: `--recursive` 옵션으로 하위 폴더까지 한 번에 변환 (구조 그대로 미러링)
 - **대화형 모드**: 단일/디렉토리 모드를 단계별로 안내
@@ -105,7 +105,10 @@
 # 하위 폴더까지 재귀적으로 변환 (입력 디렉토리 구조 그대로 미러링)
 ./target/release/image_converter -i photos -o photos_webp -f webp -q 80 -r
 
-# 사용할 스레드 수 제한 (기본: CPU 코어 수)
+# 사용할 스레드 수 제한 (CLI 플래그)
+./target/release/image_converter -i photos -o photos_webp -f webp -r -t 4
+
+# 환경변수로도 가능 (CLI 플래그가 우선)
 RAYON_NUM_THREADS=4 ./target/release/image_converter -i photos -o photos_webp -f webp -r
 ```
 
@@ -117,6 +120,7 @@ RAYON_NUM_THREADS=4 ./target/release/image_converter -i photos -o photos_webp -f
 - `-f, --format <FORMAT>`: 출력 형식 (`png`, `jpg`, `jpeg`, `webp`, `avif`)
 - `-q, --quality <QUALITY>`: 변환 품질 1-100 (기본값: 90, **PNG 출력 시 무손실이라 무시됨**)
 - `-r, --recursive`: 디렉토리 입력 시 하위 폴더까지 재귀 변환
+- `-t, --threads <N>`: 디렉토리 모드에서 사용할 스레드 수 (미지정 시 `RAYON_NUM_THREADS` 또는 CPU 코어 수). 단일 파일 변환에는 영향 없음
 
 ## 💡 예제 출력
 

@@ -12,7 +12,17 @@
 
 ## 최근 작업 로그
 
-### 2026-04-30 — `feat: AVIF 입력 디코딩 추가 (B안)` (PR 진행 중)
+### 2026-04-30 — `feat: --threads CLI 옵션 추가` (PR 진행 중)
+
+- `src/main.rs` — `Cli` 에 `threads: Option<usize>` 필드 (`-t/--threads <N>`) 추가. 단일 변환에는 영향 없고 디렉토리 모드일 때만 `convert_directory` 에 전달. 버전 `2.3` → `2.4`
+- `src/batch.rs` — `convert_directory` 시그니처에 `threads: Option<usize>` 인자 추가. `Some(n)` 이면 `rayon::ThreadPoolBuilder::new().num_threads(n).build()?` 로 local pool 만들고 `pool.install(|| par_iter().map().collect())` 패턴으로 scoped 실행. `None` 이면 rayon 전역 풀(`RAYON_NUM_THREADS` 또는 CPU 코어) 사용
+- `src/error.rs` — `ThreadPool(#[from] rayon::ThreadPoolBuildError)` variant 추가. 시그니처 외 외부 크레이트 에러는 모두 `#[from]` 패턴 일관 유지
+- `src/interactive.rs` — `convert_directory` 호출에 `None` 전달 (대화형 모드는 default 사용, 질문 추가는 향후 후보)
+- 통합 테스트 1개 추가 (총 19 → 20, 모두 통과): `test_batch_with_explicit_threads` — `threads=None` 과 `threads=Some(1)` 두 모드가 같은 4개 입력에 대해 같은 성공 개수를 내는지 검증 (스레드 수와 결과 무관 보장)
+- 기존 batch 테스트 6개 모두 시그니처 변경에 맞춰 마지막 인자에 `None` 추가
+- README/CLAUDE/PROJECT_STRUCTURE/TESTING 갱신 — `-t/--threads` 옵션 안내 + 향후 후보에서 `--threads` 제거
+
+### 2026-04-30 — `feat: AVIF 입력 디코딩 추가 (B안)` (PR #11, merged)
 
 - `Cargo.toml` — `image = { version = "0.24.2", features = ["avif-decoder"] }` 로 변경. `mp4parse` / `dcv-color-primitives` / `dav1d-sys` / `dav1d` 의존성 자동 추가
 - 시스템 의존성 추가: `libdav1d-dev` (apt) / `dav1d` (brew). 빌드 시 `pkg-config` 로 동적 링크
@@ -25,7 +35,7 @@
   - 갱신 `test_batch_mixed_input_formats` — 입력 포맷 4개 (PNG/WebP/TIFF/BMP) → 5개 (+ AVIF)
 - README/CLAUDE/PROJECT_STRUCTURE/TESTING 갱신 — 매트릭스 표 AVIF 입력 ✅, 시스템 요구사항에 `libdav1d-dev` 추가, AVIF 8-bit 한계 명시, 향후 후보에 `image` 0.25 업그레이드 추가
 
-### 2026-04-30 — `feat: 다중 입출력 포맷 지원 (역변환 + 추가 입력)` (PR 진행 중)
+### 2026-04-30 — `feat: 다중 입출력 포맷 지원 (역변환 + 추가 입력)` (PR #10, merged)
 
 - `Cargo.toml` **변경 없음** — 모든 신규 포맷이 `image` 0.24.9 의 default features 로 이미 가능
 - `src/converter.rs` `encode_to()` — 기존 `webp`/`avif` 분기에 `png`, `jpg|jpeg` 추가
@@ -92,6 +102,10 @@
 
 ## 결정 기록
 
+- **`--threads` 는 local thread pool 패턴 (전역 풀 변경 X)** — `rayon::ThreadPoolBuilder::build_global()` 은 프로세스당 한 번만 호출 가능해서 라이브러리 코드에서 사용하면 사용자 코드와 충돌 가능. 대신 `build()?` 로 local pool 을 만들고 `pool.install(|| par_iter)` 로 scope 안에서만 적용. `convert_directory` 의 시그니처에 `threads: Option<usize>` 를 받아 명시적이면 local pool, `None` 이면 전역 풀 그대로.
+- **`Option<usize>` vs `usize` (default 0)** — `clap` 으로 받을 때 `Option<usize>` 가 "사용자가 명시했는지" 와 "default 사용" 을 명확히 구분해줌. `0 = default` 컨벤션은 마술적이라 회피.
+- **CLI 플래그가 `RAYON_NUM_THREADS` 환경변수보다 우선** — `-t N` 으로 명시한 경우 local pool 을 만들어 그 안에서 실행하므로 환경변수가 무시됨. 직관적이고 사용자가 한 번에 통제 가능.
+- **대화형 모드는 스레드 수 질문 안 함** — 단계 늘리기보다 default(=모든 코어) 가 일반 사용자에게 합리적. CLI 사용자만 명시적 통제. 추가 질문은 향후 후보.
 - **AVIF 인코딩을 8-bit 로 강제 (`with_bit_depth(BitDepth::Eight)`)** — `ravif` default 가 10-bit (Auto = Ten) 인데 `image` 0.24 AVIF 디코더는 8-bit 만 지원. 강제 안 하면 우리가 만든 AVIF 를 우리가 디코딩 못 하는 라운드트립 모순 발생. 일반 사진 변환 용도에서는 8-bit 로도 충분하고 호환성(타 뷰어/디코더) 도 더 좋음. 단점은 HDR / 부드러운 그라디언트 케이스에서 약간 손해 — `image` 0.25 업그레이드로 10-bit 디코딩 지원되면 default 풀어줄 후보.
 - **외부 10-bit AVIF 입력은 명시적으로 미지원** — `image` 0.24 의 디코더 한계. 사용자가 다른 도구로 만든 10-bit AVIF 를 입력으로 쓰면 `Only 8 bit depth is supported but was 10` 에러. README 매트릭스 표 비고에 한 줄 명시. `image` 0.25 업그레이드를 향후 후보로 정리.
 - **A안 채택 (1단계에서 AVIF 입력 제외)** — `image` 크레이트의 `avif-decoder` feature 는 `dav1d` 시스템 라이브러리 (`libdav1d-dev` apt / `dav1d` brew) 를 요구. 1단계는 시스템 의존성 추가 없는 작업으로 분리하고, B안 (AVIF 입력) 은 별도 PR 로 진행해 의존성 변경의 의도를 명확히 함.
@@ -120,10 +134,11 @@
 - [x] **일괄 변환 병렬화 (`rayon`)** — 완료. 16코어에서 8장 AVIF 변환 8.3배 ↑.
 - [x] **다중 입출력 포맷 지원 (A안)** — 완료. PNG/JPG/JPEG 출력 + WebP/TIFF/BMP/ICO 입력 추가. 18 테스트 통과.
 - [x] **AVIF 입력 (B안)** — 완료. `avif-decoder` feature 활성화 + `libdav1d-dev` 의존성 추가. 라운드트립을 위해 ravif 인코딩을 8-bit 로 강제. 19 테스트 통과.
-- [ ] **`--threads` CLI 옵션** — 현재는 `RAYON_NUM_THREADS` 환경변수만. 작은 추가 작업.
+- [x] **`--threads` CLI 옵션** — 완료. `convert_directory` 가 `Option<usize>` 를 받아 local pool 로 scoped 실행. CLI 우선, 환경변수 fallback. 20 테스트 통과.
 - [ ] **`image` 0.25 업그레이드** — 10-bit AVIF 디코딩 지원. breaking change 가 있어 별도 작업. 업그레이드 후 ravif 의 8-bit 강제도 풀어줄 수 있음
 - [ ] **JPG/JPEG 단일 입력 명시 회귀 테스트** — 다중 포맷 PR 에서 혼합 배치로 간접 커버. 명시적 단일 케이스는 별도.
 - [ ] **HEIC 입력** — `libheif` 시스템 의존성 + `libheif-rs` 등 외부 크레이트. 부담 큼.
+- [ ] **대화형 모드에서 `--threads` 질문 추가** — 현재는 CLI 플래그로만 노출.
 - [ ] **대화형 모드 테스트** — `dialoguer` 입력 모킹이 까다로워 우선순위 낮음.
 
 ## 환경 메모

@@ -64,12 +64,16 @@ fn map_output_path(
 }
 
 /// 디렉토리 내 이미지를 일괄 변환
+///
+/// `threads`: 명시적 스레드 수. `None` 이면 rayon default
+/// (전역 풀 = 환경변수 `RAYON_NUM_THREADS` 또는 CPU 코어 수)
 pub fn convert_directory(
     input_dir: &str,
     output_dir: &str,
     format: &str,
     quality: f32,
     recursive: bool,
+    threads: Option<usize>,
 ) -> Result<BatchSummary> {
     let input_path = Path::new(input_dir);
     let output_path = Path::new(output_dir);
@@ -102,6 +106,13 @@ pub fn convert_directory(
         output_dir.bright_cyan(),
         format.to_uppercase().bright_magenta()
     );
+    if let Some(n) = threads {
+        println!(
+            "  {} 스레드: {}",
+            "🧵".bright_yellow(),
+            n.to_string().bright_yellow()
+        );
+    }
 
     let files = collect_images(input_path, recursive);
 
@@ -138,10 +149,20 @@ pub fn convert_directory(
     };
 
     // 병렬 변환 — ProgressBar/println 은 indicatif 내부 Mutex 로 thread-safe
-    let outcomes: Vec<Option<ConvertStats>> = files
-        .par_iter()
-        .map(|file| process_one(file, input_path, output_path, format, quality, &pb))
-        .collect();
+    // `threads` 가 지정되면 local pool 을 만들어 scoped 실행, 아니면 rayon 전역 풀 사용
+    let run_par = |files: &[PathBuf]| -> Vec<Option<ConvertStats>> {
+        files
+            .par_iter()
+            .map(|file| process_one(file, input_path, output_path, format, quality, &pb))
+            .collect()
+    };
+    let outcomes: Vec<Option<ConvertStats>> = match threads {
+        Some(n) => {
+            let pool = rayon::ThreadPoolBuilder::new().num_threads(n).build()?;
+            pool.install(|| run_par(&files))
+        }
+        None => run_par(&files),
+    };
 
     // 결과 직렬 합산
     for outcome in outcomes {

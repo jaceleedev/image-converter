@@ -115,7 +115,8 @@ pub fn interactive_mode() -> crate::error::Result<()> {
             .default(default_output)
             .interact_text()?;
 
-        convert_directory(&input_path, &output_path, &format, quality, recursive)?;
+        // 대화형 모드는 스레드 수를 묻지 않고 rayon default 사용
+        convert_directory(&input_path, &output_path, &format, quality, recursive, None)?;
     } else {
         let input_path_buf = PathBuf::from(&input_path);
         let file_stem = input_path_buf.file_stem().unwrap().to_str().unwrap();

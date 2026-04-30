@@ -14,7 +14,7 @@ image_converter/
     ├── lib.rs              # 라이브러리 루트 - 공개 API re-export
     ├── error.rs            # ConverterError + Result 타입 (thiserror 기반)
     ├── converter.rs        # 단일 파일 변환 + 인코딩 헬퍼
-    ├── batch.rs            # 디렉토리 일괄 변환 (재귀 옵션)
+    ├── batch.rs            # 디렉토리 일괄 변환 (재귀 옵션, 스레드 수 명시 가능)
     ├── interactive.rs      # 대화형 모드 (단일/디렉토리)
     ├── utils.rs            # 유틸리티 함수
     └── tests/              # 테스트 모듈
@@ -56,11 +56,11 @@ image_converter/
 
 - `convert_directory`: 입력 디렉토리에서 지원 포맷만 골라 **rayon 으로 병렬** 변환
   - 입력 화이트리스트: `png`/`jpg`/`jpeg`/`webp`/`avif`/`tiff`/`tif`/`bmp`/`ico`
+  - 시그니처 끝의 `threads: Option<usize>` 인자로 스레드 수 명시 가능. `None` 이면 rayon 전역 풀 (= `RAYON_NUM_THREADS` 또는 CPU 코어 수), `Some(n)` 이면 `ThreadPoolBuilder::new().num_threads(n).build()` 로 local pool 만들고 `pool.install(|| par_iter)` 패턴으로 scoped 실행. 전역 풀을 변경하지 않아 라이브러리 친화적
 - 각 파일은 `process_one` 헬퍼가 처리하고 `Option<ConvertStats>` 를 반환 — 한 파일이 실패해도 나머지는 그대로 진행
 - 결과는 직렬 합산하여 `BatchSummary` 통계로 반환
 - 진행률 바 (`indicatif::ProgressBar`) 와 `pb.println` 은 thread-safe (내부 Mutex)
 - 재귀 모드에서 입력 디렉토리 구조를 출력에 미러링
-- 스레드 수는 `RAYON_NUM_THREADS` 환경변수로 조절 (기본: CPU 코어 수)
 
 ### `interactive.rs` (사용자 인터페이스)
 
@@ -113,9 +113,9 @@ main.rs
 
 ## 향후 개선 제안
 
-1. **`--threads` CLI 옵션**: 환경변수 외에 명시적 플래그
-2. **`image` 0.25 업그레이드**: 10-bit AVIF 디코딩 지원. breaking change 가 있어 별도 작업
-3. **HEIC 입력**: iPhone 사진 변환용. `libheif` 시스템 의존성 + 외부 크레이트
+1. **`image` 0.25 업그레이드**: 10-bit AVIF 디코딩 지원. breaking change 가 있어 별도 작업
+2. **HEIC 입력**: iPhone 사진 변환용. `libheif` 시스템 의존성 + 외부 크레이트
+3. **대화형 모드에서 스레드 수 질문**: 현재는 CLI 플래그로만 노출
 4. **설정 모듈**: 품질 프리셋, 기본값 등을 관리하는 `config.rs`
 5. **다국어 지원**: 메시지를 별도 파일로 분리
 

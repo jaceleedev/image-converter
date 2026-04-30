@@ -26,6 +26,9 @@ pub enum ConverterError {
 
     #[error("품질 값 파싱 오류: {0}")]
     QualityParse(#[from] std::num::ParseFloatError),
+
+    #[error("스레드 풀 생성 오류: {0}")]
+    ThreadPool(#[from] rayon::ThreadPoolBuildError),
 }
 
 /// 라이브러리 전역에서 사용하는 Result 별칭

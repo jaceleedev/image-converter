@@ -199,6 +199,7 @@ fn test_batch_directory_conversion() -> Result<(), Box<dyn std::error::Error>> {
         "webp",
         85.0,
         false,
+        None,
     )?;
 
     assert_eq!(summary.total_files, 3, "3개 파일이 처리되어야 함");
@@ -238,6 +239,7 @@ fn test_batch_skips_non_image_files() -> Result<(), Box<dyn std::error::Error>> 
         "webp",
         80.0,
         false,
+        None,
     )?;
 
     assert_eq!(summary.total_files, 1, "이미지 1개만 처리되어야 함");
@@ -272,6 +274,7 @@ fn test_batch_recursive_conversion() -> Result<(), Box<dyn std::error::Error>> {
         "webp",
         80.0,
         true,
+        None,
     )?;
 
     assert_eq!(summary.total_files, 2, "재귀 모드에서 2개 파일이 처리되어야 함");
@@ -306,6 +309,7 @@ fn test_batch_non_recursive_skips_subdirs() -> Result<(), Box<dyn std::error::Er
         "webp",
         80.0,
         false,
+        None,
     )?;
 
     assert_eq!(summary.total_files, 1, "비재귀 모드에서는 1개만 처리되어야 함");
@@ -332,6 +336,7 @@ fn test_batch_empty_directory() -> Result<(), Box<dyn std::error::Error>> {
         "webp",
         90.0,
         false,
+        None,
     )?;
 
     assert_eq!(summary.total_files, 0);
@@ -520,6 +525,7 @@ fn test_batch_mixed_input_formats() -> Result<(), Box<dyn std::error::Error>> {
         "png",
         100.0,
         false,
+        None,
     )?;
 
     assert_eq!(summary.total_files, 5, "5개 파일이 처리 대상");
@@ -530,6 +536,57 @@ fn test_batch_mixed_input_formats() -> Result<(), Box<dyn std::error::Error>> {
     assert!(output_dir.join("d.png").exists());
     assert!(output_dir.join("e.png").exists());
     test_success!("5종 입력 포맷 모두 PNG 로 변환 성공");
+
+    Ok(())
+}
+
+#[test]
+fn test_batch_with_explicit_threads() -> Result<(), Box<dyn std::error::Error>> {
+    test_description!("--threads 옵션으로 스레드 수 명시 테스트");
+    test_step!("threads=Some(1) 과 threads=None 이 동일한 결과(개수/성공)를 내는지");
+
+    let temp_dir = TempDir::new()?;
+    let input_dir = temp_dir.path().join("threads_input");
+    let output_default = temp_dir.path().join("out_default");
+    let output_one = temp_dir.path().join("out_one");
+    fs::create_dir(&input_dir)?;
+
+    test_step!("4개 테스트 이미지 생성...");
+    for i in 0..4 {
+        create_test_image(
+            input_dir.join(format!("img_{}.png", i)).to_str().unwrap(),
+            50,
+            50,
+        )?;
+    }
+
+    test_step!("threads=None (rayon default) 으로 변환...");
+    let summary_default = convert_directory(
+        input_dir.to_str().unwrap(),
+        output_default.to_str().unwrap(),
+        "webp",
+        85.0,
+        false,
+        None,
+    )?;
+
+    test_step!("threads=Some(1) (단일 스레드) 으로 변환...");
+    let summary_one = convert_directory(
+        input_dir.to_str().unwrap(),
+        output_one.to_str().unwrap(),
+        "webp",
+        85.0,
+        false,
+        Some(1),
+    )?;
+
+    assert_eq!(summary_default.total_files, 4, "기본 모드 4개");
+    assert_eq!(summary_one.total_files, 4, "단일 스레드 모드 4개");
+    assert_eq!(
+        summary_default.succeeded, summary_one.succeeded,
+        "스레드 수와 무관하게 같은 성공 개수"
+    );
+    test_success!("두 모드 모두 4개 변환 성공 — 결과 일관성 확인");
 
     Ok(())
 }
