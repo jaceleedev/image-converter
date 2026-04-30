@@ -4,9 +4,9 @@ use std::path::Path;
 
 use image_converter::{convert_directory, convert_image, interactive::interactive_mode};
 
-/// PNG, JPG, JPEG 이미지를 WebP와 AVIF로 변환합니다 (단일 파일 + 디렉토리 일괄)
+/// PNG/JPG/JPEG/WebP/TIFF/BMP/ICO 이미지를 PNG/JPG/WebP/AVIF 로 변환합니다 (단일 파일 + 디렉토리 일괄)
 #[derive(Parser, Debug)]
-#[command(name = "image_converter", version = "2.2", about, long_about = None)]
+#[command(name = "image_converter", version = "2.3", about, long_about = None)]
 struct Cli {
     /// 대화형 모드로 실행
     #[arg(short = 'I', long)]
@@ -20,11 +20,11 @@ struct Cli {
     #[arg(short, long, value_name = "PATH", required_unless_present = "interactive")]
     output: Option<String>,
 
-    /// 출력 포맷 (webp 또는 avif)
+    /// 출력 포맷 (png, jpg, jpeg, webp, avif)
     #[arg(short, long, value_name = "FORMAT", required_unless_present = "interactive")]
     format: Option<String>,
 
-    /// 변환 품질 (1-100, 기본값: 90)
+    /// 변환 품질 1-100 (PNG 는 무손실이라 무시됨, 기본값: 90)
     #[arg(short, long, default_value_t = 90.0)]
     quality: f32,
 

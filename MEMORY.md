@@ -12,9 +12,28 @@
 
 ## 최근 작업 로그
 
-### 2026-04-30 — `perf: rayon 으로 일괄 변환 병렬화` (PR 진행 중)
+### 2026-04-30 — `feat: 다중 입출력 포맷 지원 (역변환 + 추가 입력)` (PR 진행 중)
+
+- `Cargo.toml` **변경 없음** — 모든 신규 포맷이 `image` 0.24.9 의 default features 로 이미 가능
+- `src/converter.rs` `encode_to()` — 기존 `webp`/`avif` 분기에 `png`, `jpg|jpeg` 추가
+  - **PNG**: `image::ImageOutputFormat::Png` + `Cursor` 로 무손실 인코딩. `quality` 인자는 조용히 무시
+  - **JPEG**: 알파 채널 미지원이라 `to_rgb8()` 로 RGB 다운샘플 후 `ImageOutputFormat::Jpeg(quality.clamp(1, 100) as u8)`. `jpg`/`jpeg` 둘 다 같은 분기로 처리
+- `src/batch.rs` `is_supported_image()` — 입력 화이트리스트에 `webp`, `tiff`, `tif`, `bmp`, `ico` 추가. AVIF 는 의도적으로 제외 (별도 PR)
+- `src/interactive.rs` — 출력 포맷 선택지에 PNG/JPEG 추가. PNG 선택 시 quality 단계 자동 스킵 + "무손실이라 적용 안 됨" 한 줄 안내 출력
+- `src/main.rs` — doc 주석 / `-f` value 설명 / `-q` 설명에 PNG 무손실 안내 / 버전 `2.2` → `2.3`
+- 통합 테스트 6개 추가 (총 12 → 18, 모두 통과):
+  - `test_png_output_from_webp_input` — WebP → PNG 역변환 + PNG 시그니처 검증
+  - `test_jpeg_output_from_png_input` — PNG → JPEG + JPEG 시그니처 검증
+  - `test_jpg_alias_for_jpeg` — `jpg` 가 `jpeg` 와 동일 분기인지 확인
+  - `test_tiff_input_to_webp` — TIFF 입력 디코딩
+  - `test_bmp_input_to_jpeg` — BMP 입력 디코딩
+  - `test_batch_mixed_input_formats` — PNG + WebP + TIFF + BMP 4종이 한 디렉토리에 섞인 일괄 변환 (모두 PNG 로 통합 출력)
+- README/CLAUDE/PROJECT_STRUCTURE 갱신 — 지원 포맷 매트릭스 표 추가
+
+### 2026-04-30 — `perf: rayon 으로 일괄 변환 병렬화` (PR #9, merged)
 
 - `Cargo.toml` — `rayon = "1.10"` 추가
+
 - `src/batch.rs` — 직렬 `for file in &files` 루프를 `files.par_iter().map(process_one).collect()` 패턴으로 전환. 각 파일 처리는 `process_one(file, in_dir, out_dir, fmt, q, &pb) -> Option<ConvertStats>` 헬퍼로 분리. 결과는 직렬 합산
 - 한 파일의 OsStr→str 인코딩 실패 시 기존엔 `?` 로 outer 함수가 통째로 실패했지만, 이제 그 파일만 실패 처리하고 나머지는 그대로 진행 (병렬 의미상 더 정확)
 - ProgressBar 와 `pb.println` 은 indicatif 내부 Mutex 로 thread-safe — 별도 락 없이 그대로 공유
@@ -60,6 +79,11 @@
 
 ## 결정 기록
 
+- **A안 채택 (AVIF 입력 제외)** — `image` 크레이트의 `avif-decoder` feature 는 `dav1d` 시스템 라이브러리 (`libdav1d-dev` apt / `dav1d` brew) 를 요구. 현재 `nasm` 한 가지만 시스템 의존성으로 잡혀 있는 깔끔함을 유지하기 위해 1단계에서 AVIF 입력만 제외. WebP 디코딩은 `image` 0.24 default features 에 포함되어 Cargo.toml 변경 없이 동작.
+- **PNG quality 는 조용히 무시** — `encode_to("png", ...)` 가 quality 인자를 받지만 사용하지 않음. CLI 와 대화형 모드에서 사용자에게 "무손실이라 적용 안 됨" 한 줄 안내 + `-q` doc 주석에도 명시. 에러로 거부하지 않는 이유는 배치 모드에서 한 quality 값을 여러 출력 포맷에 공통 적용하는 흐름을 깨지 않기 위함.
+- **JPEG 출력 시 `to_rgb8()` 로 명시적 RGB 다운샘플** — `image` 의 `write_to(..., ImageOutputFormat::Jpeg(q))` 는 RGBA 입력도 받지만 동작이 버전에 따라 다를 수 있음. 명시적으로 `DynamicImage::ImageRgb8(img.to_rgb8())` 로 변환 후 인코딩하여 알파 채널 처리를 확정적으로 만듦. 알파 픽셀은 검정 배경 위에 합성된 형태로 처리됨 (image 크레이트 기본 동작).
+- **`jpg` 와 `jpeg` 를 같은 분기로** — `match` 의 or-pattern (`"jpg" | "jpeg"`) 으로 한 분기에서 처리. 사용자 친화적이면서 코드 중복 없음. 출력 확장자도 사용자가 명시한 그대로 사용 (둘 다 동일 JPEG 컨테이너).
+- **WebP 픽스처는 webp 크레이트로 생성** — `image::ImageBuffer::save("path.webp")` 는 `image` 의 `webp-encoder` feature (`libwebp` 의존) 가 필요해서 사용 못 함. 테스트에서는 PNG 시드를 만든 후 `convert_image_silent(seed.png, fixture.webp, "webp", ...)` 로 우회.
 - **rayon `par_iter().map().collect()` + 직렬 합산** — Atomic 카운터나 `fold/reduce` 보다 단순. `BatchSummary` 구조체 변경 없이 결과만 병렬 수집 후 한 번에 누적.
 - **rayon 도입 이후 path 인코딩 실패의 의미 변경** — 직렬 시절엔 `?` 로 outer 함수까지 propagation 되어 한 파일이 실패하면 전체 일괄 변환이 중단됐는데, 병렬화하면서 "그 파일만 실패" 패턴으로 변경. 일괄 변환의 자연스러운 의미와 더 잘 맞음.
 - **진행률 메시지 제거** — `pb.set_message(file_name)` 은 병렬에서 race 로 깜빡깜빡거려 정보보다 noise. 카운트(`{pos}/{len}`)만 보여주고 finish 메시지로 마무리.
@@ -79,9 +103,12 @@
 - [x] **clap v4 마이그레이션** — 완료. derive 매크로로 전환.
 - [x] **커스텀 에러 타입 (`thiserror`)** — 완료. `ConverterError` enum + 8 variant.
 - [x] **일괄 변환 병렬화 (`rayon`)** — 완료. 16코어에서 8장 AVIF 변환 8.3배 ↑.
-- [ ] **JPG/JPEG 입력 명시 회귀 테스트** — 현재 PNG 만 명시 테스트. 작은 추가 작업.
-- [ ] **대화형 모드 테스트** — `dialoguer` 입력 모킹이 까다로워 우선순위 낮음.
+- [x] **다중 입출력 포맷 지원 (A안)** — 완료. PNG/JPG/JPEG 출력 + WebP/TIFF/BMP/ICO 입력 추가. 18 테스트 통과.
+- [ ] **AVIF 입력 (B안 후속 PR)** — `Cargo.toml` 에 `image = { ..., features = ["avif-decoder"] }` + `is_supported_image()` 화이트리스트에 `"avif"` 한 단어 + `libdav1d` 시스템 의존성 안내. 매우 작은 PR.
 - [ ] **`--threads` CLI 옵션** — 현재는 `RAYON_NUM_THREADS` 환경변수만. 작은 추가 작업.
+- [ ] **JPG/JPEG 단일 입력 명시 회귀 테스트** — 다중 포맷 PR 에서 혼합 배치로 간접 커버. 명시적 단일 케이스는 별도.
+- [ ] **HEIC 입력** — `libheif` 시스템 의존성 + `libheif-rs` 등 외부 크레이트. 부담 큼.
+- [ ] **대화형 모드 테스트** — `dialoguer` 입력 모킹이 까다로워 우선순위 낮음.
 
 ## 환경 메모
 

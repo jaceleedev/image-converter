@@ -1,8 +1,9 @@
 use colored::*;
-use image::{DynamicImage, GenericImageView};
+use image::{DynamicImage, GenericImageView, ImageOutputFormat};
 use indicatif::{ProgressBar, ProgressStyle};
 use ravif::{Encoder as AvifEncoder, Img, RGBA8};
 use std::fs;
+use std::io::Cursor;
 use webp::Encoder as WebpEncoder;
 
 use crate::error::{ConverterError, Result};
@@ -35,6 +36,20 @@ fn encode_to(img: &DynamicImage, format: &str, quality: f32) -> Result<Vec<u8>> 
             let encoder = AvifEncoder::new().with_quality(quality).with_speed(4);
             let res = encoder.encode_rgba(Img::new(&pixels, width as usize, height as usize))?;
             Ok(res.avif_file)
+        }
+        "png" => {
+            // PNG 는 무손실 — quality 는 의미 없음 (조용히 무시)
+            let mut buf: Vec<u8> = Vec::new();
+            img.write_to(&mut Cursor::new(&mut buf), ImageOutputFormat::Png)?;
+            Ok(buf)
+        }
+        "jpg" | "jpeg" => {
+            // JPEG 는 알파 채널을 가질 수 없으므로 RGB 로 다운샘플 후 인코딩
+            let q = quality.clamp(1.0, 100.0).round() as u8;
+            let rgb = DynamicImage::ImageRgb8(img.to_rgb8());
+            let mut buf: Vec<u8> = Vec::new();
+            rgb.write_to(&mut Cursor::new(&mut buf), ImageOutputFormat::Jpeg(q))?;
+            Ok(buf)
         }
         _ => Err(ConverterError::UnsupportedFormat(format.to_string())),
     }

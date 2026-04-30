@@ -1,13 +1,16 @@
 # Image Converter
 
-PNG/JPG/JPEG 이미지를 WebP/AVIF 로 변환하는 Rust CLI 도구.
+여러 이미지 포맷 (PNG/JPG/JPEG/WebP/TIFF/BMP/ICO) 을 PNG/JPG/WebP/AVIF 로 양방향 변환하는 Rust CLI 도구.
 
 ## 프로젝트 개요
 
 - **언어/도구**: Rust (edition 2021)
-- **지원**: 단일 파일 변환 + 디렉토리 일괄 변환 (재귀 옵션)
+- **지원 입력**: PNG, JPG, JPEG, WebP, TIFF, BMP, ICO (`image` 크레이트 default features)
+- **지원 출력**: PNG, JPG/JPEG, WebP, AVIF
+- **AVIF 입력은 미지원** — `libdav1d` 시스템 의존성을 요구해서 별도 PR 후보
+- **모드**: 단일 파일 변환 + 디렉토리 일괄 변환 (재귀 옵션)
 - **인터페이스**: 명령줄 모드 (`-i/-o/-f/-q/-r`) + 대화형 모드 (`-I`)
-- **변환 엔진**: WebP는 `webp` 크레이트, AVIF는 `ravif` (rav1e 기반)
+- **변환 엔진**: WebP 인코딩은 `webp` 크레이트, AVIF 인코딩은 `ravif` (rav1e 기반), 그 외 PNG/JPEG/TIFF/BMP/ICO 디코딩과 PNG/JPEG 인코딩은 `image` 크레이트
 
 세부 사용법은 `README.md` 참고.
 
@@ -18,13 +21,15 @@ src/
 ├── main.rs            # CLI 진입점, 단일/일괄 분기
 ├── lib.rs             # 공개 API re-export (main.rs도 이 lib을 통해 import)
 ├── error.rs           # ConverterError + Result 타입 (thiserror 기반)
-├── converter.rs       # 단일 변환. encode_to() 헬퍼를 통해
-│                      # convert_image(UI 포함) / convert_image_silent(조용함) 가
-│                      # 동일 내부를 공유
-├── batch.rs           # 디렉토리 일괄 변환 (walkdir + rayon 병렬, 재귀 옵션, 구조 미러링)
-├── interactive.rs     # 대화형 모드 (단일/디렉토리 선택 → 옵션 → 실행)
+├── converter.rs       # 단일 변환. encode_to() 가 webp/avif/png/jpg|jpeg 분기를
+│                      # 처리하고, convert_image(UI 포함) / convert_image_silent
+│                      # (조용함) 가 동일 내부를 공유
+├── batch.rs           # 디렉토리 일괄 변환 (walkdir + rayon 병렬, 재귀 옵션, 구조 미러링).
+│                      # 입력 화이트리스트: png/jpg/jpeg/webp/tiff/tif/bmp/ico
+├── interactive.rs     # 대화형 모드 (단일/디렉토리 선택 → 출력 포맷 → 옵션 → 실행).
+│                      # PNG 출력 시 quality 단계는 자동 스킵
 ├── utils.rs           # format_file_size 등 헬퍼
-└── tests/             # 단위 + 통합 테스트 (총 12개)
+└── tests/             # 단위 + 통합 테스트 (총 18개)
 ```
 
 세부 책임은 `PROJECT_STRUCTURE.md` 참고.
@@ -99,10 +104,12 @@ Co-authored-by: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 
 (우선순위 추정 순)
 
-1. **다양한 입력 확장자 회귀 테스트** — JPG/JPEG 명시 케이스 추가
-2. **대화형 모드 테스트** — 현재 미커버
-3. **다국어/메시지 분리** — 메시지를 별도 파일/리소스로
-4. **`--threads` CLI 옵션** — `RAYON_NUM_THREADS` 환경변수 외에 명시적 플래그
+1. **AVIF 입력 지원** — `image` 크레이트의 `avif-decoder` feature 활성화 + `libdav1d-dev` (apt) / `dav1d` (brew) 시스템 의존성 추가. `is_supported_image()` 화이트리스트에 `"avif"` 한 단어 추가하면 됨
+2. **`--threads` CLI 옵션** — `RAYON_NUM_THREADS` 환경변수 외에 명시적 플래그
+3. **JPG/JPEG 단일 입력 회귀 테스트** — 현재는 혼합 배치 / 다른 포맷 출력으로만 간접 커버. 명시적 단일 케이스
+4. **HEIC 입력** — iPhone 사진 변환용. `libheif` 시스템 의존성 + `libheif-rs` 등 외부 크레이트 도입 필요
+5. **대화형 모드 테스트** — 현재 미커버
+6. **다국어/메시지 분리** — 메시지를 별도 파일/리소스로
 
 ## 관련 문서
 

@@ -340,3 +340,189 @@ fn test_batch_empty_directory() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+
+#[test]
+fn test_png_output_from_webp_input() -> Result<(), Box<dyn std::error::Error>> {
+    test_description!("WebP → PNG 역변환 테스트");
+    test_step!("WebP 파일을 PNG 로 되돌릴 수 있는지 확인");
+
+    let temp_dir = TempDir::new()?;
+    let png_seed = temp_dir.path().join("seed.png");
+    let webp_path = temp_dir.path().join("intermediate.webp");
+    let restored_path = temp_dir.path().join("restored.png");
+
+    // 1) PNG 시드 → 2) WebP 로 변환 → 3) WebP 를 다시 PNG 로
+    create_test_image(png_seed.to_str().unwrap(), 80, 80)?;
+    convert_image_silent(
+        png_seed.to_str().unwrap(),
+        webp_path.to_str().unwrap(),
+        "webp",
+        90.0,
+    )?;
+    test_success!("WebP 중간 파일 생성");
+
+    convert_image_silent(
+        webp_path.to_str().unwrap(),
+        restored_path.to_str().unwrap(),
+        "png",
+        90.0,
+    )?;
+
+    assert!(restored_path.exists(), "복원된 PNG 파일이 생성되어야 함");
+
+    // PNG 시그니처(0x89 P N G) 검증
+    let bytes = fs::read(&restored_path)?;
+    assert_eq!(
+        &bytes[0..4],
+        &[0x89, 0x50, 0x4E, 0x47],
+        "PNG 매직 바이트 확인"
+    );
+    test_success!("WebP → PNG 역변환 + 시그니처 확인");
+
+    Ok(())
+}
+
+#[test]
+fn test_jpeg_output_from_png_input() -> Result<(), Box<dyn std::error::Error>> {
+    test_description!("PNG → JPEG 변환 테스트");
+    test_step!("PNG 입력을 JPEG 로 변환할 수 있는지 확인");
+
+    let temp_dir = TempDir::new()?;
+    let png_path = temp_dir.path().join("test.png");
+    let jpg_path = temp_dir.path().join("test.jpg");
+
+    create_test_image(png_path.to_str().unwrap(), 100, 100)?;
+
+    convert_image_silent(
+        png_path.to_str().unwrap(),
+        jpg_path.to_str().unwrap(),
+        "jpeg",
+        85.0,
+    )?;
+
+    assert!(jpg_path.exists(), "JPEG 파일이 생성되어야 함");
+
+    // JPEG 시그니처(FF D8 FF) 검증
+    let bytes = fs::read(&jpg_path)?;
+    assert_eq!(&bytes[0..3], &[0xFF, 0xD8, 0xFF], "JPEG 매직 바이트 확인");
+    test_success!("PNG → JPEG 변환 + 시그니처 확인");
+
+    Ok(())
+}
+
+#[test]
+fn test_jpg_alias_for_jpeg() -> Result<(), Box<dyn std::error::Error>> {
+    test_description!("'jpg' 가 'jpeg' 와 동일하게 처리되는지 테스트");
+
+    let temp_dir = TempDir::new()?;
+    let png_path = temp_dir.path().join("test.png");
+    let jpg_path = temp_dir.path().join("test.jpg");
+
+    create_test_image(png_path.to_str().unwrap(), 60, 60)?;
+
+    convert_image_silent(
+        png_path.to_str().unwrap(),
+        jpg_path.to_str().unwrap(),
+        "jpg",
+        85.0,
+    )?;
+
+    assert!(jpg_path.exists());
+    let bytes = fs::read(&jpg_path)?;
+    assert_eq!(&bytes[0..3], &[0xFF, 0xD8, 0xFF]);
+    test_success!("'jpg' 별칭 정상 동작");
+
+    Ok(())
+}
+
+#[test]
+fn test_tiff_input_to_webp() -> Result<(), Box<dyn std::error::Error>> {
+    test_description!("TIFF 입력을 WebP 로 변환");
+
+    let temp_dir = TempDir::new()?;
+    let tiff_path = temp_dir.path().join("test.tiff");
+    let webp_path = temp_dir.path().join("test.webp");
+
+    // ImageBuffer::save 가 확장자로 포맷 추론 → TIFF 로 저장됨
+    create_test_image(tiff_path.to_str().unwrap(), 80, 80)?;
+
+    convert_image_silent(
+        tiff_path.to_str().unwrap(),
+        webp_path.to_str().unwrap(),
+        "webp",
+        85.0,
+    )?;
+    assert!(webp_path.exists());
+    test_success!("TIFF → WebP 변환 성공");
+
+    Ok(())
+}
+
+#[test]
+fn test_bmp_input_to_jpeg() -> Result<(), Box<dyn std::error::Error>> {
+    test_description!("BMP 입력을 JPEG 로 변환");
+
+    let temp_dir = TempDir::new()?;
+    let bmp_path = temp_dir.path().join("test.bmp");
+    let jpg_path = temp_dir.path().join("test.jpg");
+
+    create_test_image(bmp_path.to_str().unwrap(), 60, 60)?;
+
+    convert_image_silent(
+        bmp_path.to_str().unwrap(),
+        jpg_path.to_str().unwrap(),
+        "jpeg",
+        85.0,
+    )?;
+    assert!(jpg_path.exists());
+    let bytes = fs::read(&jpg_path)?;
+    assert_eq!(&bytes[0..3], &[0xFF, 0xD8, 0xFF]);
+    test_success!("BMP → JPEG 변환 성공");
+
+    Ok(())
+}
+
+#[test]
+fn test_batch_mixed_input_formats() -> Result<(), Box<dyn std::error::Error>> {
+    test_description!("일괄 변환에서 다양한 입력 포맷 혼합 테스트");
+    test_step!("PNG + WebP + TIFF + BMP 가 한 디렉토리에 있을 때 모두 PNG 로 변환되는지");
+
+    let temp_dir = TempDir::new()?;
+    let input_dir = temp_dir.path().join("mixed_input");
+    let output_dir = temp_dir.path().join("mixed_output");
+    fs::create_dir(&input_dir)?;
+
+    // PNG, TIFF, BMP 는 ImageBuffer::save 가 직접 만들 수 있음
+    create_test_image(input_dir.join("a.png").to_str().unwrap(), 50, 50)?;
+    create_test_image(input_dir.join("b.tiff").to_str().unwrap(), 50, 50)?;
+    create_test_image(input_dir.join("c.bmp").to_str().unwrap(), 50, 50)?;
+
+    // WebP 는 별도 webp 크레이트로 인코딩 — 임시 PNG 를 거쳐 생성
+    let temp_png = temp_dir.path().join("temp_seed.png");
+    create_test_image(temp_png.to_str().unwrap(), 50, 50)?;
+    convert_image_silent(
+        temp_png.to_str().unwrap(),
+        input_dir.join("d.webp").to_str().unwrap(),
+        "webp",
+        90.0,
+    )?;
+    test_success!("혼합 입력 4개 (PNG/TIFF/BMP/WebP) 준비 완료");
+
+    let summary = convert_directory(
+        input_dir.to_str().unwrap(),
+        output_dir.to_str().unwrap(),
+        "png",
+        100.0,
+        false,
+    )?;
+
+    assert_eq!(summary.total_files, 4, "4개 파일이 처리 대상");
+    assert_eq!(summary.succeeded, 4, "4개 모두 성공");
+    assert!(output_dir.join("a.png").exists());
+    assert!(output_dir.join("b.png").exists());
+    assert!(output_dir.join("c.png").exists());
+    assert!(output_dir.join("d.png").exists());
+    test_success!("4종 입력 포맷 모두 PNG 로 변환 성공");
+
+    Ok(())
+}
