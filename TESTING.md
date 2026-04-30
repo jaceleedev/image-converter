@@ -8,6 +8,7 @@
 
 ```
 src/
+  main.rs         # CLI 인자 파서 단위 테스트 (#[cfg(test)] mod tests)
   lib.rs          # 테스트용 함수들
   tests/
     mod.rs        # 테스트 모듈 선언
@@ -158,6 +159,26 @@ cargo test --release
 23. **`test_jpg_extension_input`**
     - 입력 측 `.jpg` 확장자도 JPEG 디코더로 정상 인식되는지 확인 (`.jpg`/`.jpeg` 양쪽 별칭 회귀 방지)
 
+### 🛠️ CLI 인자 파서 단위 테스트 (`src/main.rs`)
+
+24. **`parse_quality_accepts_valid_range`**
+    - `--quality` 가 1.0 / 50.5 / 100.0 같은 정상 범위 값을 통과시키는지 확인
+
+25. **`parse_quality_rejects_out_of_range`**
+    - 0, 0.99, 100.01, -10, 200 같은 범위 외 값이 거부되는지 확인
+
+26. **`parse_quality_rejects_non_numeric`**
+    - `"abc"` 같은 비숫자 입력이 한국어 에러 메시지("유효한 숫자가 아닙니다") 와 함께 거부되는지 확인
+
+27. **`parse_threads_accepts_positive`**
+    - `--threads` 가 1, 16 같은 양의 정수를 통과시키는지 확인
+
+28. **`parse_threads_rejects_zero`**
+    - 0 이 거부되고 한국어 에러 메시지("1 이상") 가 포함되는지 확인 (rayon 풀 빌드 단계 panic 방지)
+
+29. **`parse_threads_rejects_non_numeric`**
+    - 비숫자(`"abc"`) 와 음수(`"-1"`) 입력 거부 확인
+
 ## 테스트 매크로
 
 ### `test_description!`
@@ -216,7 +237,7 @@ fn test_new_feature() {
 
 ## 테스트 커버리지
 
-현재 테스트는 다음 영역을 커버합니다 (총 23개):
+현재 테스트는 다음 영역을 커버합니다 (총 29개):
 - ✅ 파일 크기 포맷팅
 - ✅ WebP / AVIF 단일 변환
 - ✅ 품질 파라미터 검증
@@ -229,6 +250,7 @@ fn test_new_feature() {
 - ✅ 혼합 입력 포맷 일괄 변환 (PNG + WebP + AVIF + TIFF + BMP → PNG)
 - ✅ 명시적 스레드 수 옵션 (`threads=None` vs `threads=Some(1)` 결과 일관성)
 - ✅ JPG/JPEG 단일 입력 (jpeg→webp, jpeg→png, .jpg 확장자 별칭)
+- ✅ CLI 인자 파서 (`--quality` 1.0~100.0 범위, `--threads` ≥ 1 검증, 비숫자/범위 외 거부)
 
 향후 추가할 수 있는 테스트:
 - 10-bit AVIF 입력 디코딩 (`image` 0.25 업그레이드 후)

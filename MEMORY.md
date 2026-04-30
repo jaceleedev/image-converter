@@ -12,6 +12,17 @@
 
 ## 최근 작업 로그
 
+### 2026-04-30 — `fix: CLI 인자 검증 강화 (--threads, --quality)` (PR 진행 중)
+
+- `src/main.rs` — `parse_quality(s) -> Result<f32, String>` (1.0~100.0 범위 검증), `parse_threads(s) -> Result<usize, String>` (1 이상 정수 검증) 두 사용자 정의 파서 추가. clap `#[arg(... value_parser = parse_quality)]` / `value_parser = parse_threads` 로 연결
+- 한국어 에러 메시지: `"품질은 1.0~100.0 범위여야 합니다 (입력: {q})"`, `"스레드 수는 1 이상이어야 합니다"`, `"'{s}' 는 유효한 숫자가 아닙니다"` — clap 의 영어 wrapper 안에 그대로 노출
+- 기존엔 `--threads 0` 이 `rayon::ThreadPoolBuilder::new().num_threads(0).build()` 단계에서 panic 가능, `--quality 200` 은 인코더 분기의 `clamp(1, 100)` 에 의해 silent 100 으로 처리되던 사각지대 해소
+- `src/main.rs` 끝에 `#[cfg(test)] mod tests` 추가 — 단위 테스트 6개 (`parse_quality_*` 3개 + `parse_threads_*` 3개): 정상 범위 통과, 범위 외 거부, 비숫자/음수 거부, 한국어 에러 메시지 포함 확인
+- `--threads` doc 주석 / README.md `-t` 옵션 설명에 "1 이상" 명시
+- 23 통합 + 6 단위 = 29 테스트 모두 통과
+- **clap 한계**: `-q -10` 같이 음수 값은 clap 이 `-1` 을 short 옵션으로 해석해서 우리 검증 도달 전에 "unexpected argument" 에러가 남. `--quality=-10` 형태나 `-q 0.5` 로는 정상 차단. 이 한계는 일반적인 clap 동작이라 별도 워크어라운드 안 함
+- TESTING.md / CLAUDE.md / README.md / MEMORY.md 갱신
+
 ### 2026-04-30 — `test: JPG/JPEG 단일 입력 회귀 테스트 추가` (PR 진행 중)
 
 - `src/tests/integration_tests.rs` — 통합 테스트 3개 추가 (총 20 → 23, 모두 통과):
@@ -136,6 +147,8 @@
 - **`encode_to()` 헬퍼 분리** — 단일 변환의 UI 포함 버전과 조용한 버전, 그리고 일괄 변환에서 호출되는 inner 까지 세 곳이 동일 인코딩 로직을 쓰는 상황. 헬퍼로 분리하여 한 군데에서만 유지.
 - **`convert_image_silent` 의 반환 타입을 `()` → `ConvertStats`** — 일괄 모드의 합계 통계 계산을 위해. 기존 테스트는 `?` 로만 결과를 처리해서 시그니처 변경에 영향 없음.
 - **bin/lib 중복 컴파일 제거** — `main.rs` 가 `mod converter;` 등으로 모듈을 직접 포함하면 lib 과 bin 양쪽에서 같은 코드가 컴파일되고 `convert_image_silent` 가 bin 측에서 dead_code 경고. `main.rs` 를 `image_converter::*` 로 import 하도록 변경하여 해결.
+- **CLI 인자 검증은 사용자 정의 파서로 통일** — clap v4 의 `clap::value_parser!().range(..)` 는 정수 (`u16`/`usize` 등) 만 직접 지원하고 `f32`/`f64` 는 안 됨. quality (float) 와 threads (usize) 두 인자가 있어서 한쪽만 빌트인 range 를 쓰면 일관성이 깨지므로, 양쪽 다 `fn parse_quality(&str) -> Result<f32, String>` / `fn parse_threads(&str) -> Result<usize, String>` 사용자 정의 파서로 통일. 부수 효과로 한국어 에러 메시지 (`"품질은 1.0~100.0 범위여야 합니다"`) 를 직접 작성 가능 — clap 의 영어 wrapper (`"invalid value '0' for ..."`) 안에 우리 사유가 그대로 노출됨.
+- **음수 인자 (`-q -10`) 는 clap 한계로 별도 워크어라운드 안 함** — clap 은 `-` 시작 토큰을 short option 으로 해석해서 `-1` 이 unknown flag 로 거부됨. `allow_negative_numbers` attribute 를 켜면 우회 가능하지만 사용자가 음수 quality 를 의도적으로 넣는 경우는 거의 없고, `--quality=-10` / `-q 0.5` 형태로는 우리 검증이 정상 차단하므로 단순함을 위해 보류.
 
 ## 진행 중 / 대기
 
@@ -146,9 +159,9 @@
 - [x] **AVIF 입력 (B안)** — 완료. `avif-decoder` feature 활성화 + `libdav1d-dev` 의존성 추가. 라운드트립을 위해 ravif 인코딩을 8-bit 로 강제. 19 테스트 통과.
 - [x] **`--threads` CLI 옵션** — 완료. `convert_directory` 가 `Option<usize>` 를 받아 local pool 로 scoped 실행. CLI 우선, 환경변수 fallback. 20 테스트 통과.
 - [x] **JPG/JPEG 단일 입력 명시 회귀 테스트** — 완료. 통합 테스트 3개 추가 (jpeg→webp, jpeg→png, .jpg 확장자 입력). 23 테스트 통과.
+- [x] **CLI 인자 검증 강화** — 완료. `parse_quality` / `parse_threads` 사용자 정의 파서 + 단위 테스트 6개. `--threads 0` 한국어 메시지로 차단, `--quality 200/0.5/abc` 거부. 29 테스트 통과.
 - [ ] **`image` 0.25 업그레이드** — 10-bit AVIF 디코딩 지원. breaking change 가 있어 별도 작업. 업그레이드 후 ravif 의 8-bit 강제도 풀어줄 수 있음
 - [ ] **HEIC 입력** — `libheif` 시스템 의존성 + `libheif-rs` 등 외부 크레이트. 부담 큼.
-- [ ] **CLI 인자 검증 강화** — `--threads 0` 거부, `--quality` 1-100 범위 검증. clap `value_parser!.range(...)` 적용.
 - [ ] **대화형 모드 리팩토링 + 단위 테스트 + `--threads` 질문 추가** — `validate_with` 클로저와 default 출력 경로 빌더를 순수 함수로 분리해서 단위 테스트 가능하게 만들고, 그 김에 디렉토리 모드에 threads 질문 단계 추가. dialoguer 자체 모킹은 비용이 커서 보류.
 - [ ] **대화형 모드 통합 테스트** — `dialoguer` 의 `Select` 가 PTY 필요해서 `rexpect` 등 도입 부담. 우선순위 낮음 (위 리팩토링으로 단위 테스트는 우회 커버).
 

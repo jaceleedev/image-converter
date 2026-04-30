@@ -29,7 +29,7 @@ src/
 ├── interactive.rs     # 대화형 모드 (단일/디렉토리 선택 → 출력 포맷 → 옵션 → 실행).
 │                      # PNG 출력 시 quality 단계는 자동 스킵
 ├── utils.rs           # format_file_size 등 헬퍼
-└── tests/             # 단위 + 통합 테스트 (총 23개)
+└── tests/             # 단위 + 통합 테스트 (총 29개)
 ```
 
 세부 책임은 `PROJECT_STRUCTURE.md` 참고.
