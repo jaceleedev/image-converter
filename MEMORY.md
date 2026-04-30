@@ -12,6 +12,22 @@
 
 ## 최근 작업 로그
 
+### 2026-04-30 — `refactor: 대화형 모드 검증 분리 + 단위 테스트 + threads 질문 추가` (PR 진행 중)
+
+- `src/interactive.rs` — `validate_with` 인라인 클로저와 디폴트 출력 경로 인라인 코드를 5개 순수 함수로 분리:
+  - `validate_input_path(input, is_batch) -> Result<(), &'static str>` — 경로 존재 + 단일/배치 모드 타입 검증
+  - `validate_quality_input(input)` — 1.0~100.0 부동소수 범위
+  - `validate_threads_input(input)` — 1 이상 정수
+  - `default_output_path_for_file(path, format)` — `{stem}_converted.{format}`
+  - `default_output_path_for_dir(path, format)` — `{dirname}_converted_{format}`
+- 디렉토리 모드 흐름에 **스레드 수 질문 단계** 추가 — `Input::allow_empty(true)` + `validate_with` 로 빈 입력 = `None` (rayon default), 숫자 = `Some(n)`. 출력 경로 입력 직전에 위치
+- `convert_directory` 호출 시 hardcoded `None` 대신 위에서 받은 `threads: Option<usize>` 전달
+- `src/interactive.rs` 끝에 `#[cfg(test)] mod tests` 추가 — 12 개 단위 테스트 (5 함수 × 2~4 케이스). `validate_input_path` 테스트는 `tempfile::TempDir` 로 실제 fs 케이스 검증
+- 기존 단일 모드의 `file_stem().unwrap().to_str().unwrap()` 이중 unwrap 도 함께 안전화 (`.and_then(|s| s.to_str()).unwrap_or("output")`)
+- README/PROJECT_STRUCTURE/CLAUDE/TESTING/MEMORY 갱신 — README 의 대화형 단계 안내가 PNG/JPEG 출력 + 디렉토리 모드 단계까지 누락된 상태였는데 이번 기회에 같이 갱신
+- 통합 21 + 단위 (lib) 14 + 단위 (main) 6 = **41 테스트 모두 통과**
+- `dialoguer` 자체 PTY 통합 테스트는 비용 대비 가치가 낮아 보류 (검증 로직만 분리해서 단위 커버)
+
 ### 2026-04-30 — `fix: CLI 인자 검증 강화 (--threads, --quality)` (PR 진행 중)
 
 - `src/main.rs` — `parse_quality(s) -> Result<f32, String>` (1.0~100.0 범위 검증), `parse_threads(s) -> Result<usize, String>` (1 이상 정수 검증) 두 사용자 정의 파서 추가. clap `#[arg(... value_parser = parse_quality)]` / `value_parser = parse_threads` 로 연결
@@ -149,6 +165,8 @@
 - **bin/lib 중복 컴파일 제거** — `main.rs` 가 `mod converter;` 등으로 모듈을 직접 포함하면 lib 과 bin 양쪽에서 같은 코드가 컴파일되고 `convert_image_silent` 가 bin 측에서 dead_code 경고. `main.rs` 를 `image_converter::*` 로 import 하도록 변경하여 해결.
 - **CLI 인자 검증은 사용자 정의 파서로 통일** — clap v4 의 `clap::value_parser!().range(..)` 는 정수 (`u16`/`usize` 등) 만 직접 지원하고 `f32`/`f64` 는 안 됨. quality (float) 와 threads (usize) 두 인자가 있어서 한쪽만 빌트인 range 를 쓰면 일관성이 깨지므로, 양쪽 다 `fn parse_quality(&str) -> Result<f32, String>` / `fn parse_threads(&str) -> Result<usize, String>` 사용자 정의 파서로 통일. 부수 효과로 한국어 에러 메시지 (`"품질은 1.0~100.0 범위여야 합니다"`) 를 직접 작성 가능 — clap 의 영어 wrapper (`"invalid value '0' for ..."`) 안에 우리 사유가 그대로 노출됨.
 - **음수 인자 (`-q -10`) 는 clap 한계로 별도 워크어라운드 안 함** — clap 은 `-` 시작 토큰을 short option 으로 해석해서 `-1` 이 unknown flag 로 거부됨. `allow_negative_numbers` attribute 를 켜면 우회 가능하지만 사용자가 음수 quality 를 의도적으로 넣는 경우는 거의 없고, `--quality=-10` / `-q 0.5` 형태로는 우리 검증이 정상 차단하므로 단순함을 위해 보류.
+- **대화형 모드 검증은 dialoguer 모킹 대신 순수 함수 분리로 단위 테스트** — `dialoguer::Select` 는 raw TTY 모드라 stdin pipe 시뮬레이션이 안 됨. PTY 도구 (`rexpect` 등) 도입은 환경 의존성이 커서 flaky 위험. 대신 `validate_with` 클로저와 디폴트 경로 빌더처럼 **검증 가치가 큰 순수 로직만 함수로 분리**하면 dialoguer 한 줄도 안 건드리고 단위 테스트 가능. 흐름 자체의 통합 테스트는 비용 대비 가치가 낮아 보류.
+- **대화형 모드 스레드 수 질문은 한 단계 (`allow_empty=true`) 패턴** — 이전 결정 ("대화형 모드는 스레드 수 질문 안 함") 을 부분 뒤집음. `Confirm` (예/아니오) + `Input` (값) 두 단계로 나누면 친절하지만 늘어짐. 한 단계 (`Input::allow_empty(true)`) 로 통합: 빈 입력 = `None` (모든 코어), 숫자 = `Some(n)`. 사용자 친화 + 단계 수 최소.
 
 ## 진행 중 / 대기
 
@@ -160,10 +178,10 @@
 - [x] **`--threads` CLI 옵션** — 완료. `convert_directory` 가 `Option<usize>` 를 받아 local pool 로 scoped 실행. CLI 우선, 환경변수 fallback. 20 테스트 통과.
 - [x] **JPG/JPEG 단일 입력 명시 회귀 테스트** — 완료. 통합 테스트 3개 추가 (jpeg→webp, jpeg→png, .jpg 확장자 입력). 23 테스트 통과.
 - [x] **CLI 인자 검증 강화** — 완료. `parse_quality` / `parse_threads` 사용자 정의 파서 + 단위 테스트 6개. `--threads 0` 한국어 메시지로 차단, `--quality 200/0.5/abc` 거부. 29 테스트 통과.
+- [x] **대화형 모드 리팩토링 + 단위 테스트 + `--threads` 질문 추가** — 완료. 검증/디폴트 빌더 5개 함수 분리, 단위 테스트 12개 추가, 디렉토리 모드에 빈-입력=`None` 패턴의 스레드 수 질문 단계 삽입. 41 테스트 통과.
 - [ ] **`image` 0.25 업그레이드** — 10-bit AVIF 디코딩 지원. breaking change 가 있어 별도 작업. 업그레이드 후 ravif 의 8-bit 강제도 풀어줄 수 있음
 - [ ] **HEIC 입력** — `libheif` 시스템 의존성 + `libheif-rs` 등 외부 크레이트. 부담 큼.
-- [ ] **대화형 모드 리팩토링 + 단위 테스트 + `--threads` 질문 추가** — `validate_with` 클로저와 default 출력 경로 빌더를 순수 함수로 분리해서 단위 테스트 가능하게 만들고, 그 김에 디렉토리 모드에 threads 질문 단계 추가. dialoguer 자체 모킹은 비용이 커서 보류.
-- [ ] **대화형 모드 통합 테스트** — `dialoguer` 의 `Select` 가 PTY 필요해서 `rexpect` 등 도입 부담. 우선순위 낮음 (위 리팩토링으로 단위 테스트는 우회 커버).
+- [ ] **대화형 모드 통합 테스트** — `dialoguer::Select` 가 PTY 필요해서 `rexpect` 등 도입 부담. 우선순위 낮음 (위 리팩토링으로 검증/경로 로직은 단위 테스트로 커버됨).
 
 ## 환경 메모
 
