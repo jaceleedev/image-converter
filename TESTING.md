@@ -137,7 +137,11 @@ cargo test --release
     - BMP 입력이 디코딩되어 JPEG 로 변환되는지 확인
 
 18. **`test_batch_mixed_input_formats`**
-    - PNG + WebP + TIFF + BMP 4종이 한 디렉토리에 섞여 있을 때 모두 PNG 로 일괄 변환되는지 확인 (배치 모드의 입력 화이트리스트 + 다중 디코더 결합 검증)
+    - PNG + WebP + AVIF + TIFF + BMP 5종이 한 디렉토리에 섞여 있을 때 모두 PNG 로 일괄 변환되는지 확인 (배치 모드의 입력 화이트리스트 + 다중 디코더 결합 검증)
+
+19. **`test_avif_input_to_png`**
+    - AVIF → PNG 라운드트립이 동작하는지 확인 (`avif-decoder` feature + `dav1d` 디코딩, 8-bit AVIF 인코딩)
+    - 출력 파일이 PNG 매직 바이트로 시작하는지 검증
 
 ## 테스트 매크로
 
@@ -197,7 +201,7 @@ fn test_new_feature() {
 
 ## 테스트 커버리지
 
-현재 테스트는 다음 영역을 커버합니다 (총 18개):
+현재 테스트는 다음 영역을 커버합니다 (총 19개):
 - ✅ 파일 크기 포맷팅
 - ✅ WebP / AVIF 단일 변환
 - ✅ 품질 파라미터 검증
@@ -205,12 +209,12 @@ fn test_new_feature() {
 - ✅ 비이미지 파일 자동 스킵
 - ✅ 빈 디렉토리 처리
 - ✅ 에러 처리 (지원하지 않는 형식, 존재하지 않는 파일)
-- ✅ PNG / JPEG 출력 (WebP → PNG 역변환, PNG → JPEG, jpg 별칭)
-- ✅ TIFF / BMP 입력 디코딩
-- ✅ 혼합 입력 포맷 일괄 변환 (PNG + WebP + TIFF + BMP → PNG)
+- ✅ PNG / JPEG 출력 (WebP → PNG 역변환, AVIF → PNG 역변환, PNG → JPEG, jpg 별칭)
+- ✅ TIFF / BMP / AVIF 입력 디코딩
+- ✅ 혼합 입력 포맷 일괄 변환 (PNG + WebP + AVIF + TIFF + BMP → PNG)
 
 향후 추가할 수 있는 테스트:
-- AVIF 입력 디코딩 (`libdav1d` 의존성 추가 후)
+- 10-bit AVIF 입력 디코딩 (`image` 0.25 업그레이드 후)
 - JPG/JPEG 단일 입력 명시 케이스 (현재는 혼합 배치로 간접 커버)
 - 일괄 변환 중 일부 파일이 손상되어 실패할 때의 동작
 - 대용량 이미지 처리

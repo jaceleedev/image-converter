@@ -45,7 +45,7 @@ image_converter/
 
 - `encode_to`: 메모리 이미지를 WebP/AVIF/PNG/JPG/JPEG 바이트로 인코딩 (내부 헬퍼)
   - WebP: `webp::Encoder::from_image` + `encode(quality)`
-  - AVIF: `ravif::Encoder` (rav1e 기반, RGBA 추출 후 인코딩)
+  - AVIF: `ravif::Encoder` (rav1e 기반, RGBA 추출 후 인코딩) — `with_bit_depth(BitDepth::Eight)` 로 **8-bit 강제** (image 0.24 디코더와 호환성 유지)
   - PNG: `image` 크레이트의 `write_to(&mut Cursor, ImageOutputFormat::Png)` — 무손실, quality 무시
   - JPG/JPEG: 알파 채널을 가질 수 없어 `to_rgb8()` 으로 다운샘플 후 `ImageOutputFormat::Jpeg(quality_u8)`
 - `convert_image`: 진행률 + 결과 출력 포함
@@ -55,8 +55,7 @@ image_converter/
 ### `batch.rs` (디렉토리 일괄 변환)
 
 - `convert_directory`: 입력 디렉토리에서 지원 포맷만 골라 **rayon 으로 병렬** 변환
-  - 입력 화이트리스트: `png`/`jpg`/`jpeg`/`webp`/`tiff`/`tif`/`bmp`/`ico`
-  - AVIF 는 디코더가 `libdav1d` 시스템 의존성을 요구해서 입력 화이트리스트에서 제외 (별도 PR 후보)
+  - 입력 화이트리스트: `png`/`jpg`/`jpeg`/`webp`/`avif`/`tiff`/`tif`/`bmp`/`ico`
 - 각 파일은 `process_one` 헬퍼가 처리하고 `Option<ConvertStats>` 를 반환 — 한 파일이 실패해도 나머지는 그대로 진행
 - 결과는 직렬 합산하여 `BatchSummary` 통계로 반환
 - 진행률 바 (`indicatif::ProgressBar`) 와 `pb.println` 은 thread-safe (내부 Mutex)
@@ -114,8 +113,8 @@ main.rs
 
 ## 향후 개선 제안
 
-1. **AVIF 입력 지원**: `image` 크레이트의 `avif-decoder` feature 활성화 + `libdav1d` 시스템 의존성 추가
-2. **`--threads` CLI 옵션**: 환경변수 외에 명시적 플래그
+1. **`--threads` CLI 옵션**: 환경변수 외에 명시적 플래그
+2. **`image` 0.25 업그레이드**: 10-bit AVIF 디코딩 지원. breaking change 가 있어 별도 작업
 3. **HEIC 입력**: iPhone 사진 변환용. `libheif` 시스템 의존성 + 외부 크레이트
 4. **설정 모듈**: 품질 프리셋, 기본값 등을 관리하는 `config.rs`
 5. **다국어 지원**: 메시지를 별도 파일로 분리
