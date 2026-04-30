@@ -143,6 +143,10 @@ cargo test --release
     - AVIF → PNG 라운드트립이 동작하는지 확인 (`avif-decoder` feature + `dav1d` 디코딩, 8-bit AVIF 인코딩)
     - 출력 파일이 PNG 매직 바이트로 시작하는지 검증
 
+20. **`test_batch_with_explicit_threads`**
+    - `convert_directory()` 의 `threads: Option<usize>` 인자 검증
+    - `None` (기본) 과 `Some(1)` (단일 스레드) 두 모드에서 같은 입력에 대해 같은 성공 개수가 나오는지 확인 (스레드 수에 결과가 영향받지 않아야 함)
+
 ## 테스트 매크로
 
 ### `test_description!`
@@ -201,7 +205,7 @@ fn test_new_feature() {
 
 ## 테스트 커버리지
 
-현재 테스트는 다음 영역을 커버합니다 (총 19개):
+현재 테스트는 다음 영역을 커버합니다 (총 20개):
 - ✅ 파일 크기 포맷팅
 - ✅ WebP / AVIF 단일 변환
 - ✅ 품질 파라미터 검증
@@ -212,6 +216,7 @@ fn test_new_feature() {
 - ✅ PNG / JPEG 출력 (WebP → PNG 역변환, AVIF → PNG 역변환, PNG → JPEG, jpg 별칭)
 - ✅ TIFF / BMP / AVIF 입력 디코딩
 - ✅ 혼합 입력 포맷 일괄 변환 (PNG + WebP + AVIF + TIFF + BMP → PNG)
+- ✅ 명시적 스레드 수 옵션 (`threads=None` vs `threads=Some(1)` 결과 일관성)
 
 향후 추가할 수 있는 테스트:
 - 10-bit AVIF 입력 디코딩 (`image` 0.25 업그레이드 후)
