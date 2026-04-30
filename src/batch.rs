@@ -1,9 +1,10 @@
 use colored::*;
 use indicatif::{ProgressBar, ProgressStyle};
+use rayon::prelude::*;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
-use crate::converter::convert_image_silent;
+use crate::converter::{convert_image_silent, ConvertStats};
 use crate::error::{ConverterError, Result};
 use crate::utils::format_file_size;
 
@@ -134,58 +135,92 @@ pub fn convert_directory(
         total_output_size: 0,
     };
 
-    for file in &files {
-        let display = file
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("?")
-            .to_string();
-        pb.set_message(display.clone());
+    // 병렬 변환 — ProgressBar/println 은 indicatif 내부 Mutex 로 thread-safe
+    let outcomes: Vec<Option<ConvertStats>> = files
+        .par_iter()
+        .map(|file| process_one(file, input_path, output_path, format, quality, &pb))
+        .collect();
 
-        let dest = map_output_path(file, input_path, output_path, format);
-        if let Some(parent) = dest.parent() {
-            if let Err(e) = std::fs::create_dir_all(parent) {
-                pb.println(format!(
-                    "  {} {}: 출력 디렉토리 생성 실패 ({})",
-                    "❌".bright_red(),
-                    display,
-                    e
-                ));
-                summary.failed += 1;
-                pb.inc(1);
-                continue;
-            }
-        }
-
-        match convert_image_silent(
-            file.to_str()
-                .ok_or_else(|| ConverterError::InvalidPath(format!("{}", file.display())))?,
-            dest.to_str()
-                .ok_or_else(|| ConverterError::InvalidPath(format!("{}", dest.display())))?,
-            format,
-            quality,
-        ) {
-            Ok(stats) => {
+    // 결과 직렬 합산
+    for outcome in outcomes {
+        match outcome {
+            Some(stats) => {
                 summary.succeeded += 1;
                 summary.total_input_size += stats.input_size;
                 summary.total_output_size += stats.output_size;
             }
-            Err(e) => {
-                summary.failed += 1;
-                pb.println(format!(
-                    "  {} {}: {}",
-                    "❌".bright_red(),
-                    display,
-                    e
-                ));
-            }
+            None => summary.failed += 1,
         }
-        pb.inc(1);
     }
 
     pb.finish_with_message("✅ 일괄 변환 완료!");
     print_batch_summary(&summary, quality);
     Ok(summary)
+}
+
+/// 단일 파일을 변환하고, 진행률 바를 1 증가시킨다. 실패 시 progressbar 위에 메시지를 찍고 None 반환
+fn process_one(
+    file: &Path,
+    input_dir: &Path,
+    output_dir: &Path,
+    format: &str,
+    quality: f32,
+    pb: &ProgressBar,
+) -> Option<ConvertStats> {
+    let display = file
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("?")
+        .to_string();
+
+    let dest = map_output_path(file, input_dir, output_dir, format);
+    if let Some(parent) = dest.parent() {
+        if let Err(e) = std::fs::create_dir_all(parent) {
+            pb.println(format!(
+                "  {} {}: 출력 디렉토리 생성 실패 ({})",
+                "❌".bright_red(),
+                display,
+                e
+            ));
+            pb.inc(1);
+            return None;
+        }
+    }
+
+    let in_str = match file.to_str() {
+        Some(s) => s,
+        None => {
+            pb.println(format!(
+                "  {} {}: 입력 경로 인코딩 오류",
+                "❌".bright_red(),
+                display
+            ));
+            pb.inc(1);
+            return None;
+        }
+    };
+    let out_str = match dest.to_str() {
+        Some(s) => s,
+        None => {
+            pb.println(format!(
+                "  {} {}: 출력 경로 인코딩 오류",
+                "❌".bright_red(),
+                display
+            ));
+            pb.inc(1);
+            return None;
+        }
+    };
+
+    let result = match convert_image_silent(in_str, out_str, format, quality) {
+        Ok(stats) => Some(stats),
+        Err(e) => {
+            pb.println(format!("  {} {}: {}", "❌".bright_red(), display, e));
+            None
+        }
+    };
+    pb.inc(1);
+    result
 }
 
 fn print_batch_summary(summary: &BatchSummary, quality: f32) {

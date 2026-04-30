@@ -21,7 +21,7 @@ src/
 ├── converter.rs       # 단일 변환. encode_to() 헬퍼를 통해
 │                      # convert_image(UI 포함) / convert_image_silent(조용함) 가
 │                      # 동일 내부를 공유
-├── batch.rs           # 디렉토리 일괄 변환 (walkdir 기반, 재귀 옵션, 구조 미러링)
+├── batch.rs           # 디렉토리 일괄 변환 (walkdir + rayon 병렬, 재귀 옵션, 구조 미러링)
 ├── interactive.rs     # 대화형 모드 (단일/디렉토리 선택 → 옵션 → 실행)
 ├── utils.rs           # format_file_size 등 헬퍼
 └── tests/             # 단위 + 통합 테스트 (총 12개)
@@ -99,10 +99,10 @@ Co-authored-by: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 
 (우선순위 추정 순)
 
-1. **일괄 변환 병렬화** — `rayon` 으로 멀티코어 활용 (큰 폴더에서 효과 큼)
-2. **다양한 입력 확장자 회귀 테스트** — JPG/JPEG 명시 케이스 추가
-3. **대화형 모드 테스트** — 현재 미커버
-4. **다국어/메시지 분리** — 메시지를 별도 파일/리소스로
+1. **다양한 입력 확장자 회귀 테스트** — JPG/JPEG 명시 케이스 추가
+2. **대화형 모드 테스트** — 현재 미커버
+3. **다국어/메시지 분리** — 메시지를 별도 파일/리소스로
+4. **`--threads` CLI 옵션** — `RAYON_NUM_THREADS` 환경변수 외에 명시적 플래그
 
 ## 관련 문서
 

@@ -12,7 +12,21 @@
 
 ## 최근 작업 로그
 
-### 2026-04-30 — `refactor: thiserror 기반 ConverterError 도입` (PR 진행 중)
+### 2026-04-30 — `perf: rayon 으로 일괄 변환 병렬화` (PR 진행 중)
+
+- `Cargo.toml` — `rayon = "1.10"` 추가
+- `src/batch.rs` — 직렬 `for file in &files` 루프를 `files.par_iter().map(process_one).collect()` 패턴으로 전환. 각 파일 처리는 `process_one(file, in_dir, out_dir, fmt, q, &pb) -> Option<ConvertStats>` 헬퍼로 분리. 결과는 직렬 합산
+- 한 파일의 OsStr→str 인코딩 실패 시 기존엔 `?` 로 outer 함수가 통째로 실패했지만, 이제 그 파일만 실패 처리하고 나머지는 그대로 진행 (병렬 의미상 더 정확)
+- ProgressBar 와 `pb.println` 은 indicatif 내부 Mutex 로 thread-safe — 별도 락 없이 그대로 공유
+- 진행률 메시지(`pb.set_message`)는 race 가 noisy 해서 제거. 진행률 카운트 + 마지막 finish 메시지만 표시
+- **성능**: 16코어 환경에서 800x800 노이즈 PNG 8장 → AVIF q80 변환 비교
+  - 직렬 (`RAYON_NUM_THREADS=1`): **28.87s**
+  - 병렬 (default=16): **3.48s** (≈ **8.3배** 속도 향상, 8개 파일 / 거의 이론적 최대치에 근접)
+- 12개 테스트 그대로 통과, 단일 변환과 빈 디렉토리 처리 회귀 없음
+- 사용자가 스레드 수 조절 시 `RAYON_NUM_THREADS` 환경변수 사용 (별도 CLI 플래그는 향후 후보)
+- README/CLAUDE.md/PROJECT_STRUCTURE.md 갱신
+
+### 2026-04-30 — `refactor: thiserror 기반 ConverterError 도입` (PR #8, merged)
 
 - 신규 `src/error.rs` — `ConverterError` enum + `Result<T>` 별칭. variant: `Io` / `Image` / `Webp(String)` / `Avif` / `UnsupportedFormat(String)` / `InvalidPath(String)` / `Dialog` / `QualityParse`
 - 외부 크레이트 에러는 `#[from]` 으로 자동 변환 (`std::io::Error`, `image::ImageError`, `ravif::Error`, `dialoguer::Error`, `std::num::ParseFloatError`). webp 의 `&str` 에러만 수동 `to_string()` 매핑
@@ -46,6 +60,10 @@
 
 ## 결정 기록
 
+- **rayon `par_iter().map().collect()` + 직렬 합산** — Atomic 카운터나 `fold/reduce` 보다 단순. `BatchSummary` 구조체 변경 없이 결과만 병렬 수집 후 한 번에 누적.
+- **rayon 도입 이후 path 인코딩 실패의 의미 변경** — 직렬 시절엔 `?` 로 outer 함수까지 propagation 되어 한 파일이 실패하면 전체 일괄 변환이 중단됐는데, 병렬화하면서 "그 파일만 실패" 패턴으로 변경. 일괄 변환의 자연스러운 의미와 더 잘 맞음.
+- **진행률 메시지 제거** — `pb.set_message(file_name)` 은 병렬에서 race 로 깜빡깜빡거려 정보보다 noise. 카운트(`{pos}/{len}`)만 보여주고 finish 메시지로 마무리.
+- **스레드 수는 환경변수로** — `RAYON_NUM_THREADS=N` 으로 제어. 명시적 `--threads` CLI 플래그는 단순함을 위해 보류, 필요해지면 추가.
 - **`crate::error::Result` 를 1-generic alias 로 정의** — `pub type Result<T> = std::result::Result<T, ConverterError>`. 코드량은 줄지만 dialoguer 의 `validate_with` 클로저(`Result<(), &str>` 시그니처) 와 이름이 충돌함. interactive.rs 에서는 use 를 제거하고 시그니처에 `crate::error::Result<()>` fully qualified 사용으로 회피.
 - **WebP 에러는 `String` 으로 owned 변환** — `webp::Encoder::from_image` 가 `Result<Self, &str>` 를 반환. `&str` 은 `#[from]` 대상이 안 되고, `'static` 이 아니라 그대로 들고 있을 수도 없음. `Webp(String)` variant 로 받고 `.to_string()` 으로 매핑.
 - **`UnsupportedFormat` 에 포맷 문자열 포함** — 기존 `"지원하지 않는 포맷입니다"` 정적 메시지를 `"지원하지 않는 포맷입니다: {0}"` 로 변경. 디버그/사용자 경험 모두 향상되지만 기존 `assert_eq!` 테스트가 깨짐 → `contains` 검증으로 함께 갱신.
@@ -60,9 +78,10 @@
 
 - [x] **clap v4 마이그레이션** — 완료. derive 매크로로 전환.
 - [x] **커스텀 에러 타입 (`thiserror`)** — 완료. `ConverterError` enum + 8 variant.
-- [ ] **일괄 변환 병렬화 (`rayon`)** — 다음 PR 후보. 진행률 바를 멀티스레드 친화적으로 바꾸는 작업이 같이 필요.
+- [x] **일괄 변환 병렬화 (`rayon`)** — 완료. 16코어에서 8장 AVIF 변환 8.3배 ↑.
 - [ ] **JPG/JPEG 입력 명시 회귀 테스트** — 현재 PNG 만 명시 테스트. 작은 추가 작업.
 - [ ] **대화형 모드 테스트** — `dialoguer` 입력 모킹이 까다로워 우선순위 낮음.
+- [ ] **`--threads` CLI 옵션** — 현재는 `RAYON_NUM_THREADS` 환경변수만. 작은 추가 작업.
 
 ## 환경 메모
 

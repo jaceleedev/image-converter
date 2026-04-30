@@ -5,7 +5,7 @@ PNG, JPG, JPEG 이미지를 WebP와 AVIF 형식으로 변환하는 고성능 이
 ## ✨ 주요 기능
 
 - **다양한 형식 지원**: PNG, JPG, JPEG → WebP, AVIF
-- **단일 파일 + 디렉토리 일괄 변환**: 입력이 디렉토리이면 자동으로 일괄 모드
+- **단일 파일 + 디렉토리 일괄 변환**: 입력이 디렉토리이면 자동으로 일괄 모드 (rayon 으로 멀티코어 병렬 처리)
 - **재귀 변환**: `--recursive` 옵션으로 하위 폴더까지 한 번에 변환 (구조 그대로 미러링)
 - **대화형 모드**: 단일/디렉토리 모드를 단계별로 안내
 - **용량 비교**: 변환 전후 파일 크기 및 감소율 표시 (배치 모드는 합계까지)
@@ -62,7 +62,7 @@ cargo build --release
 
 ### 명령줄 모드 - 디렉토리 일괄 변환
 
-입력 경로가 디렉토리이면 자동으로 일괄 변환 모드로 동작합니다.
+입력 경로가 디렉토리이면 자동으로 일괄 변환 모드로 동작합니다. 변환은 **rayon** 을 통해 멀티코어로 병렬 처리됩니다 (큰 폴더에서 큰 속도 향상).
 
 ```bash
 # photos/ 안의 모든 PNG/JPG/JPEG 를 WebP로 변환 (현재 폴더만)
@@ -70,6 +70,9 @@ cargo build --release
 
 # 하위 폴더까지 재귀적으로 변환 (입력 디렉토리 구조 그대로 미러링)
 ./target/release/image_converter -i photos -o photos_webp -f webp -q 80 -r
+
+# 사용할 스레드 수 제한 (기본: CPU 코어 수)
+RAYON_NUM_THREADS=4 ./target/release/image_converter -i photos -o photos_webp -f webp -r
 ```
 
 ## 📊 옵션
@@ -141,6 +144,8 @@ imgconvi
 - **colored**: 색상 출력
 - **indicatif**: 진행률 표시
 - **walkdir**: 디렉토리 재귀 순회
+- **rayon**: 일괄 변환 멀티코어 병렬 처리
+- **thiserror**: 명시적 커스텀 에러 타입
 
 ## 📈 성능
 

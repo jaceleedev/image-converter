@@ -522,6 +522,7 @@ dependencies = [
  "image",
  "indicatif",
  "ravif",
+ "rayon",
  "tempfile",
  "thiserror 1.0.69",
  "walkdir",
