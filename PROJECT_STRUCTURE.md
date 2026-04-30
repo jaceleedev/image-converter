@@ -10,10 +10,11 @@ image_converter/
 ├── TESTING.md              # 테스트 실행 가이드
 ├── PROJECT_STRUCTURE.md    # 이 문서
 └── src/
-    ├── main.rs             # 진입점 - CLI 인자 처리
-    ├── lib.rs              # 라이브러리 루트 - 테스트용 함수
-    ├── converter.rs        # 핵심 변환 로직
-    ├── interactive.rs      # 대화형 모드
+    ├── main.rs             # 진입점 - CLI 인자 처리, 단일/일괄 분기
+    ├── lib.rs              # 라이브러리 루트 - 공개 API re-export
+    ├── converter.rs        # 단일 파일 변환 + 인코딩 헬퍼
+    ├── batch.rs            # 디렉토리 일괄 변환 (재귀 옵션)
+    ├── interactive.rs      # 대화형 모드 (단일/디렉토리)
     ├── utils.rs            # 유틸리티 함수
     └── tests/              # 테스트 모듈
         ├── mod.rs          # 테스트 모듈 선언
@@ -28,19 +29,28 @@ image_converter/
 
 - CLI 인자 파싱 (clap 사용)
 - 대화형/명령줄 모드 분기
+- 입력 경로 타입(파일/디렉토리)에 따라 단일/일괄 변환 분기
 - 에러 처리 및 종료
 
-### `converter.rs` (핵심 비즈니스 로직)
+### `converter.rs` (단일 변환 비즈니스 로직)
 
-- 이미지 변환 함수
-- 진행률 표시
-- 결과 출력
+- `encode_to`: 메모리 이미지를 WebP/AVIF 바이트로 인코딩 (내부 헬퍼)
+- `convert_image`: 진행률 + 결과 출력 포함
+- `convert_image_silent`: 출력 없는 변환 (`ConvertStats` 반환). 배치 모드와 테스트에서 사용
+- 두 함수 모두 동일한 내부 인코딩 헬퍼를 호출 (코드 중복 제거)
+
+### `batch.rs` (디렉토리 일괄 변환)
+
+- `convert_directory`: 입력 디렉토리에서 PNG/JPG/JPEG 만 골라 일괄 변환
+- 재귀 모드에서 입력 디렉토리 구조를 출력에 미러링
+- 전체 진행률 표시 + 합계 통계 (`BatchSummary`) 반환
 
 ### `interactive.rs` (사용자 인터페이스)
 
 - 대화형 모드 구현
-- 사용자 입력 처리
-- 메뉴 시스템
+- 단일 파일 / 디렉토리 모드 선택
+- 디렉토리 모드에서 재귀 옵션 질문
+- 단계별 사용자 입력 처리
 
 ### `utils.rs` (공통 유틸리티)
 
@@ -49,9 +59,8 @@ image_converter/
 
 ### `lib.rs` (라이브러리 인터페이스)
 
-- 공개 API 정의
-- 테스트용 변환 함수
-- 모듈 re-export
+- 공개 API re-export (`convert_image`, `convert_image_silent`, `convert_directory`, ...)
+- `main.rs`도 이 라이브러리를 통해 변환 함수에 접근하여 코드 중복 컴파일을 피함
 
 ### `tests/` (테스트 코드)
 
@@ -71,22 +80,24 @@ image_converter/
 
 ```
 main.rs
-  ├── converter.rs (변환 기능)
-  │     └── utils.rs (헬퍼 함수)
-  └── interactive.rs (대화형 모드)
-        └── converter.rs (변환 실행)
-
-lib.rs
-  ├── converter.rs (re-export)
-  ├── utils.rs (re-export)
-  └── tests/ (테스트에서만 사용)
+  └── image_converter (lib)
+        ├── converter.rs (단일 변환)
+        │     └── utils.rs
+        ├── batch.rs (일괄 변환)
+        │     ├── converter.rs (단일 변환을 루프 호출)
+        │     └── utils.rs
+        ├── interactive.rs (대화형 모드)
+        │     ├── converter.rs
+        │     └── batch.rs
+        └── tests/ (테스트에서만 사용)
 ```
 
 ## 향후 개선 제안
 
-1. **에러 타입 정의**: `Result<T, Box<dyn Error>>`를 커스텀 에러 타입으로
-2. **설정 모듈**: 품질 프리셋, 기본값 등을 관리하는 `config.rs`
-3. **다국어 지원**: 메시지를 별도 파일로 분리
-4. **플러그인 시스템**: 새로운 이미지 형식 지원을 쉽게 추가
+1. **에러 타입 정의**: `Result<T, Box<dyn Error>>`를 커스텀 에러 타입으로 (`thiserror` 도입)
+2. **clap v4 마이그레이션**: 현재 v3.2.x 사용 중
+3. **병렬 일괄 변환**: `rayon`으로 배치 모드 멀티코어 활용
+4. **설정 모듈**: 품질 프리셋, 기본값 등을 관리하는 `config.rs`
+5. **다국어 지원**: 메시지를 별도 파일로 분리
 
 이 구조는 현재 프로젝트 규모에 적합하며, 향후 확장에도 대응할 수 있습니다.

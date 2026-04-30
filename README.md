@@ -5,8 +5,10 @@ PNG, JPG, JPEG 이미지를 WebP와 AVIF 형식으로 변환하는 고성능 이
 ## ✨ 주요 기능
 
 - **다양한 형식 지원**: PNG, JPG, JPEG → WebP, AVIF
-- **대화형 모드**: 편리한 CLI 인터페이스
-- **용량 비교**: 변환 전후 파일 크기 및 감소율 표시
+- **단일 파일 + 디렉토리 일괄 변환**: 입력이 디렉토리이면 자동으로 일괄 모드
+- **재귀 변환**: `--recursive` 옵션으로 하위 폴더까지 한 번에 변환 (구조 그대로 미러링)
+- **대화형 모드**: 단일/디렉토리 모드를 단계별로 안내
+- **용량 비교**: 변환 전후 파일 크기 및 감소율 표시 (배치 모드는 합계까지)
 - **진행 상황 표시**: 실시간 진행률 표시
 - **품질 설정**: 1-100% 품질 조정 가능
 - **아름다운 UI**: 이모티콘과 색상으로 보기 좋은 출력
@@ -48,7 +50,7 @@ cargo build --release
 3. 품질 선택 (최고/높음/보통/낮음/사용자 지정)
 4. 출력 파일 경로 확인
 
-### 명령줄 모드
+### 명령줄 모드 - 단일 파일
 
 ```bash
 # WebP로 변환 (품질 90%)
@@ -58,15 +60,30 @@ cargo build --release
 ./target/release/image_converter -i photo.jpg -o photo.avif -f avif -q 80
 ```
 
+### 명령줄 모드 - 디렉토리 일괄 변환
+
+입력 경로가 디렉토리이면 자동으로 일괄 변환 모드로 동작합니다.
+
+```bash
+# photos/ 안의 모든 PNG/JPG/JPEG 를 WebP로 변환 (현재 폴더만)
+./target/release/image_converter -i photos -o photos_webp -f webp -q 80
+
+# 하위 폴더까지 재귀적으로 변환 (입력 디렉토리 구조 그대로 미러링)
+./target/release/image_converter -i photos -o photos_webp -f webp -q 80 -r
+```
+
 ## 📊 옵션
 
 - `-I, --interactive`: 대화형 모드 실행
-- `-i, --input <FILE>`: 입력 이미지 파일 경로
-- `-o, --output <FILE>`: 출력 파일 경로
+- `-i, --input <PATH>`: 입력 이미지 파일 또는 디렉토리 경로
+- `-o, --output <PATH>`: 출력 파일 또는 디렉토리 경로
 - `-f, --format <FORMAT>`: 출력 형식 (webp 또는 avif)
 - `-q, --quality <QUALITY>`: 변환 품질 (1-100, 기본값: 90)
+- `-r, --recursive`: 디렉토리 입력 시 하위 폴더까지 재귀 변환
 
 ## 💡 예제 출력
+
+### 단일 파일 변환
 
 ```
 🚀 이미지 변환을 시작합니다...
@@ -75,6 +92,22 @@ cargo build --release
 💾 변환 후: 1.23 MB (품질: 90%)
 🎉 용량 감소: 76.9% ↓
 ✨ 변환 완료: input.png → output.webp
+```
+
+### 디렉토리 일괄 변환
+
+```
+🚀 디렉토리 일괄 변환을 시작합니다...
+  📂 입력: photos (재귀)
+  📁 출력: photos_webp (WEBP)
+[00:00:05] ████████████████████████████████ 12/12 last.png
+
+📊 일괄 변환 결과:
+  🗂️ 처리 대상: 12개
+  ✅ 성공: 12개  ❌ 실패: 0개
+  📁 원본 합계: 38.21 MB
+  💾 변환 합계: 8.74 MB (품질: 80%)
+  🎉 평균 용량 감소: 77.1% ↓
 ```
 
 ## 🎯 Alias 설정
@@ -107,6 +140,7 @@ imgconvi
 - **dialoguer**: 대화형 인터페이스
 - **colored**: 색상 출력
 - **indicatif**: 진행률 표시
+- **walkdir**: 디렉토리 재귀 순회
 
 ## 📈 성능
 

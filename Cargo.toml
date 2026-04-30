@@ -19,6 +19,7 @@ clap = "3.2.8"
 dialoguer = "0.11"
 colored = "2.1"
 indicatif = "0.17"
+walkdir = "2.5"
 
 [dev-dependencies]
 tempfile = "3.0"

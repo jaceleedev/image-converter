@@ -1,6 +1,6 @@
 use crate::{test_description, test_step, test_success};
 use crate::tests::test_utils::create_test_image;
-use crate::convert_image_silent;
+use crate::{convert_directory, convert_image_silent};
 use std::fs;
 use tempfile::TempDir;
 
@@ -168,4 +168,170 @@ fn test_nonexistent_input_file() {
     // 에러가 발생해야 함
     assert!(result.is_err(), "존재하지 않는 파일은 에러를 반환해야 함");
     test_success!("예상대로 에러 발생");
+}
+
+#[test]
+fn test_batch_directory_conversion() -> Result<(), Box<dyn std::error::Error>> {
+    test_description!("디렉토리 일괄 변환 테스트");
+    test_step!("여러 PNG 파일이 모두 WebP로 변환되는지 확인");
+
+    let temp_dir = TempDir::new()?;
+    let input_dir = temp_dir.path().join("input");
+    let output_dir = temp_dir.path().join("output");
+    fs::create_dir(&input_dir)?;
+
+    test_step!("3개의 테스트 이미지 생성 중...");
+    for i in 0..3 {
+        let path = input_dir.join(format!("image_{}.png", i));
+        create_test_image(path.to_str().unwrap(), 60, 60)?;
+    }
+    test_success!("테스트 이미지 3개 생성 완료");
+
+    test_step!("일괄 변환 실행 (재귀 X)...");
+    let summary = convert_directory(
+        input_dir.to_str().unwrap(),
+        output_dir.to_str().unwrap(),
+        "webp",
+        85.0,
+        false,
+    )?;
+
+    assert_eq!(summary.total_files, 3, "3개 파일이 처리되어야 함");
+    assert_eq!(summary.succeeded, 3, "3개 모두 성공해야 함");
+    assert_eq!(summary.failed, 0, "실패는 없어야 함");
+    test_success!("3개 모두 성공 확인");
+
+    for i in 0..3 {
+        let expected = output_dir.join(format!("image_{}.webp", i));
+        assert!(expected.exists(), "{} 가 존재해야 함", expected.display());
+    }
+    test_success!("출력 파일 3개 모두 생성 확인");
+
+    Ok(())
+}
+
+#[test]
+fn test_batch_skips_non_image_files() -> Result<(), Box<dyn std::error::Error>> {
+    test_description!("일괄 변환 시 비이미지 파일 스킵 테스트");
+    test_step!(".txt 같은 비이미지 파일은 무시되는지 확인");
+
+    let temp_dir = TempDir::new()?;
+    let input_dir = temp_dir.path().join("input");
+    let output_dir = temp_dir.path().join("output");
+    fs::create_dir(&input_dir)?;
+
+    test_step!("이미지 1개 + 텍스트 파일 1개 생성 중...");
+    create_test_image(input_dir.join("photo.png").to_str().unwrap(), 50, 50)?;
+    fs::write(input_dir.join("notes.txt"), "스킵되어야 함")?;
+    fs::write(input_dir.join("readme.md"), "이것도 스킵")?;
+    test_success!("혼합 파일 생성 완료");
+
+    test_step!("일괄 변환 실행...");
+    let summary = convert_directory(
+        input_dir.to_str().unwrap(),
+        output_dir.to_str().unwrap(),
+        "webp",
+        80.0,
+        false,
+    )?;
+
+    assert_eq!(summary.total_files, 1, "이미지 1개만 처리되어야 함");
+    assert_eq!(summary.succeeded, 1, "1개 성공");
+    assert!(output_dir.join("photo.webp").exists(), "WebP 파일 생성 확인");
+    assert!(!output_dir.join("notes.txt").exists(), "텍스트 파일은 복사되면 안 됨");
+    test_success!("비이미지 파일 스킵 확인");
+
+    Ok(())
+}
+
+#[test]
+fn test_batch_recursive_conversion() -> Result<(), Box<dyn std::error::Error>> {
+    test_description!("재귀 모드 일괄 변환 테스트");
+    test_step!("하위 디렉토리 구조가 출력에 미러링되는지 확인");
+
+    let temp_dir = TempDir::new()?;
+    let input_dir = temp_dir.path().join("input");
+    let output_dir = temp_dir.path().join("output");
+    let sub_dir = input_dir.join("sub");
+    fs::create_dir_all(&sub_dir)?;
+
+    test_step!("루트 + 서브 디렉토리에 이미지 생성 중...");
+    create_test_image(input_dir.join("root.png").to_str().unwrap(), 40, 40)?;
+    create_test_image(sub_dir.join("nested.png").to_str().unwrap(), 40, 40)?;
+    test_success!("이미지 2개 생성 완료");
+
+    test_step!("재귀 모드로 일괄 변환 실행...");
+    let summary = convert_directory(
+        input_dir.to_str().unwrap(),
+        output_dir.to_str().unwrap(),
+        "webp",
+        80.0,
+        true,
+    )?;
+
+    assert_eq!(summary.total_files, 2, "재귀 모드에서 2개 파일이 처리되어야 함");
+    assert!(output_dir.join("root.webp").exists(), "루트 출력 확인");
+    assert!(
+        output_dir.join("sub").join("nested.webp").exists(),
+        "서브 디렉토리 구조 미러링 확인"
+    );
+    test_success!("재귀 변환 + 디렉토리 구조 보존 확인");
+
+    Ok(())
+}
+
+#[test]
+fn test_batch_non_recursive_skips_subdirs() -> Result<(), Box<dyn std::error::Error>> {
+    test_description!("비재귀 모드에서 하위 디렉토리 스킵 테스트");
+    test_step!("재귀 옵션 없이 실행 시 하위 디렉토리는 무시되는지 확인");
+
+    let temp_dir = TempDir::new()?;
+    let input_dir = temp_dir.path().join("input");
+    let output_dir = temp_dir.path().join("output");
+    let sub_dir = input_dir.join("sub");
+    fs::create_dir_all(&sub_dir)?;
+
+    create_test_image(input_dir.join("top.png").to_str().unwrap(), 40, 40)?;
+    create_test_image(sub_dir.join("nested.png").to_str().unwrap(), 40, 40)?;
+    test_success!("최상위 + 하위 이미지 생성 완료");
+
+    let summary = convert_directory(
+        input_dir.to_str().unwrap(),
+        output_dir.to_str().unwrap(),
+        "webp",
+        80.0,
+        false,
+    )?;
+
+    assert_eq!(summary.total_files, 1, "비재귀 모드에서는 1개만 처리되어야 함");
+    assert!(output_dir.join("top.webp").exists());
+    assert!(!output_dir.join("sub").join("nested.webp").exists());
+    test_success!("하위 디렉토리 스킵 확인");
+
+    Ok(())
+}
+
+#[test]
+fn test_batch_empty_directory() -> Result<(), Box<dyn std::error::Error>> {
+    test_description!("이미지가 없는 디렉토리 처리 테스트");
+    test_step!("빈 디렉토리에서도 에러 없이 0개 처리로 끝나는지 확인");
+
+    let temp_dir = TempDir::new()?;
+    let input_dir = temp_dir.path().join("empty_input");
+    let output_dir = temp_dir.path().join("empty_output");
+    fs::create_dir(&input_dir)?;
+
+    let summary = convert_directory(
+        input_dir.to_str().unwrap(),
+        output_dir.to_str().unwrap(),
+        "webp",
+        90.0,
+        false,
+    )?;
+
+    assert_eq!(summary.total_files, 0);
+    assert_eq!(summary.succeeded, 0);
+    test_success!("빈 디렉토리도 정상 처리");
+
+    Ok(())
 }
