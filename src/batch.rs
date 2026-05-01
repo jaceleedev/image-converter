@@ -4,7 +4,7 @@ use rayon::prelude::*;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
-use crate::converter::{convert_image_silent, ConvertStats};
+use crate::converter::{convert_image_silent_with_options, ConvertStats, ResizeOptions};
 use crate::error::{ConverterError, Result};
 use crate::format::OutputFormat;
 use crate::utils::{format_file_size, format_quality_label};
@@ -80,6 +80,21 @@ pub fn convert_directory(
     recursive: bool,
     threads: Option<usize>,
 ) -> Result<BatchSummary> {
+    convert_directory_with_options(
+        input_dir, output_dir, format, quality, recursive, threads, None,
+    )
+}
+
+/// 디렉토리 내 이미지를 일괄 변환한다. 리사이즈 같은 추가 옵션을 적용할 때 사용한다.
+pub fn convert_directory_with_options(
+    input_dir: &str,
+    output_dir: &str,
+    format: OutputFormat,
+    quality: f32,
+    recursive: bool,
+    threads: Option<usize>,
+    resize: Option<ResizeOptions>,
+) -> Result<BatchSummary> {
     let input_path = Path::new(input_dir);
     let output_path = Path::new(output_dir);
 
@@ -116,6 +131,13 @@ pub fn convert_directory(
             "  {} 스레드: {}",
             "🧵".bright_yellow(),
             n.to_string().bright_yellow()
+        );
+    }
+    if let Some(options) = resize {
+        println!(
+            "  {} 최대 가로: {}px",
+            "📐".bright_yellow(),
+            options.max_width.to_string().bright_yellow()
         );
     }
 
@@ -158,7 +180,7 @@ pub fn convert_directory(
     let run_par = |files: &[PathBuf]| -> Vec<ProcessOutcome> {
         files
             .par_iter()
-            .map(|file| process_one(file, input_path, output_path, format, quality, &pb))
+            .map(|file| process_one(file, input_path, output_path, format, quality, resize, &pb))
             .collect()
     };
     let outcomes: Vec<ProcessOutcome> = match threads {
@@ -194,6 +216,7 @@ fn process_one(
     output_dir: &Path,
     format: OutputFormat,
     quality: f32,
+    resize: Option<ResizeOptions>,
     pb: &ProgressBar,
 ) -> ProcessOutcome {
     let display = file
@@ -252,7 +275,7 @@ fn process_one(
         }
     };
 
-    let result = match convert_image_silent(in_str, out_str, format, quality) {
+    let result = match convert_image_silent_with_options(in_str, out_str, format, quality, resize) {
         Ok(stats) => ProcessOutcome::Converted(stats),
         Err(ConverterError::OutputExists(_)) => {
             pb.println(format!(

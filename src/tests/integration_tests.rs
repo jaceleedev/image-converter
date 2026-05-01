@@ -1,6 +1,10 @@
 use crate::tests::test_utils::create_test_image;
-use crate::{convert_directory, convert_image_silent, ConverterError, OutputFormat};
+use crate::{
+    convert_directory, convert_directory_with_options, convert_image_silent,
+    convert_image_silent_with_options, ConverterError, OutputFormat, ResizeOptions,
+};
 use crate::{test_description, test_step, test_success};
+use image::GenericImageView;
 use std::fs;
 use tempfile::TempDir;
 
@@ -222,6 +226,62 @@ fn test_single_conversion_rejects_mismatched_output_extension(
 }
 
 #[test]
+fn test_single_conversion_resizes_to_max_width() -> Result<(), Box<dyn std::error::Error>> {
+    test_description!("단일 변환 리사이즈 옵션 테스트");
+    test_step!("최대 가로 크기를 지정하면 비율을 유지하며 축소되는지 확인");
+
+    let temp_dir = TempDir::new()?;
+    let input_path = temp_dir.path().join("wide.png");
+    let output_path = temp_dir.path().join("wide_resized.png");
+    create_test_image(input_path.to_str().unwrap(), 200, 100)?;
+
+    let stats = convert_image_silent_with_options(
+        input_path.to_str().unwrap(),
+        output_path.to_str().unwrap(),
+        OutputFormat::Png,
+        100.0,
+        Some(ResizeOptions { max_width: 100 }),
+    )?;
+
+    let img = image::open(&output_path)?;
+    assert_eq!(img.dimensions(), (100, 50));
+    assert_eq!(stats.width, 200);
+    assert_eq!(stats.height, 100);
+    assert_eq!(stats.output_width, 100);
+    assert_eq!(stats.output_height, 50);
+    test_success!("200x100 → 100x50 리사이즈 확인");
+
+    Ok(())
+}
+
+#[test]
+fn test_resize_option_does_not_upscale() -> Result<(), Box<dyn std::error::Error>> {
+    test_description!("리사이즈 옵션 확대 방지 테스트");
+    test_step!("최대 가로 크기가 원본보다 크면 이미지를 확대하지 않는지 확인");
+
+    let temp_dir = TempDir::new()?;
+    let input_path = temp_dir.path().join("small.png");
+    let output_path = temp_dir.path().join("small_out.png");
+    create_test_image(input_path.to_str().unwrap(), 50, 25)?;
+
+    let stats = convert_image_silent_with_options(
+        input_path.to_str().unwrap(),
+        output_path.to_str().unwrap(),
+        OutputFormat::Png,
+        100.0,
+        Some(ResizeOptions { max_width: 200 }),
+    )?;
+
+    let img = image::open(&output_path)?;
+    assert_eq!(img.dimensions(), (50, 25));
+    assert_eq!(stats.output_width, 50);
+    assert_eq!(stats.output_height, 25);
+    test_success!("원본보다 큰 최대 가로 크기는 확대하지 않음");
+
+    Ok(())
+}
+
+#[test]
 fn test_batch_directory_conversion() -> Result<(), Box<dyn std::error::Error>> {
     test_description!("디렉토리 일괄 변환 테스트");
     test_step!("여러 PNG 파일이 모두 WebP로 변환되는지 확인");
@@ -258,6 +318,44 @@ fn test_batch_directory_conversion() -> Result<(), Box<dyn std::error::Error>> {
         assert!(expected.exists(), "{} 가 존재해야 함", expected.display());
     }
     test_success!("출력 파일 3개 모두 생성 확인");
+
+    Ok(())
+}
+
+#[test]
+fn test_batch_conversion_with_resize_option() -> Result<(), Box<dyn std::error::Error>> {
+    test_description!("일괄 변환 리사이즈 옵션 테스트");
+    test_step!("폴더 전체 변환에서도 같은 최대 가로 크기가 적용되는지 확인");
+
+    let temp_dir = TempDir::new()?;
+    let input_dir = temp_dir.path().join("input");
+    let output_dir = temp_dir.path().join("output");
+    fs::create_dir(&input_dir)?;
+
+    create_test_image(input_dir.join("a.png").to_str().unwrap(), 80, 40)?;
+    create_test_image(input_dir.join("b.png").to_str().unwrap(), 120, 60)?;
+
+    let summary = convert_directory_with_options(
+        input_dir.to_str().unwrap(),
+        output_dir.to_str().unwrap(),
+        OutputFormat::Png,
+        100.0,
+        false,
+        None,
+        Some(ResizeOptions { max_width: 40 }),
+    )?;
+
+    assert_eq!(summary.total_files, 2);
+    assert_eq!(summary.succeeded, 2);
+    assert_eq!(
+        image::open(output_dir.join("a.png"))?.dimensions(),
+        (40, 20)
+    );
+    assert_eq!(
+        image::open(output_dir.join("b.png"))?.dimensions(),
+        (40, 20)
+    );
+    test_success!("일괄 변환 리사이즈 적용 확인");
 
     Ok(())
 }
