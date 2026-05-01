@@ -1,5 +1,7 @@
 use colored::*;
-use image::{imageops::FilterType, DynamicImage, GenericImageView, ImageOutputFormat};
+use image::{
+    imageops::FilterType, DynamicImage, GenericImageView, ImageOutputFormat, Rgb, RgbImage,
+};
 use indicatif::{ProgressBar, ProgressStyle};
 use ravif::{BitDepth, Encoder as AvifEncoder, Img, RGBA8};
 use std::fs;
@@ -27,8 +29,42 @@ pub struct ResizeOptions {
     pub max_width: u32,
 }
 
+/// JPEG 출력 시 투명 픽셀 아래에 깔 배경색
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct JpegBackground {
+    pub r: u8,
+    pub g: u8,
+    pub b: u8,
+}
+
+impl JpegBackground {
+    pub const fn white() -> Self {
+        Self {
+            r: 255,
+            g: 255,
+            b: 255,
+        }
+    }
+
+    pub const fn black() -> Self {
+        Self { r: 0, g: 0, b: 0 }
+    }
+}
+
+/// 변환 전후에 적용할 추가 옵션
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct ConversionOptions {
+    pub resize: Option<ResizeOptions>,
+    pub jpeg_background: Option<JpegBackground>,
+}
+
 /// 메모리에 로드된 이미지를 지정한 포맷으로 인코딩
-fn encode_to(img: &DynamicImage, format: OutputFormat, quality: f32) -> Result<Vec<u8>> {
+fn encode_to(
+    img: &DynamicImage,
+    format: OutputFormat,
+    quality: f32,
+    options: ConversionOptions,
+) -> Result<Vec<u8>> {
     match format {
         OutputFormat::Webp => {
             let encoder =
@@ -61,7 +97,10 @@ fn encode_to(img: &DynamicImage, format: OutputFormat, quality: f32) -> Result<V
         OutputFormat::Jpg | OutputFormat::Jpeg => {
             // JPEG 는 알파 채널을 가질 수 없으므로 RGB 로 다운샘플 후 인코딩
             let q = quality.clamp(1.0, 100.0).round() as u8;
-            let rgb = DynamicImage::ImageRgb8(img.to_rgb8());
+            let rgb = match options.jpeg_background {
+                Some(background) => flatten_for_jpeg(img, background),
+                None => DynamicImage::ImageRgb8(img.to_rgb8()),
+            };
             let mut buf: Vec<u8> = Vec::new();
             rgb.write_to(&mut Cursor::new(&mut buf), ImageOutputFormat::Jpeg(q))?;
             Ok(buf)
@@ -69,18 +108,43 @@ fn encode_to(img: &DynamicImage, format: OutputFormat, quality: f32) -> Result<V
     }
 }
 
-fn resize_image(img: DynamicImage, resize: Option<ResizeOptions>) -> DynamicImage {
-    let Some(options) = resize else {
+fn flatten_for_jpeg(img: &DynamicImage, background: JpegBackground) -> DynamicImage {
+    let rgba = img.to_rgba8();
+    let (width, height) = rgba.dimensions();
+    let mut rgb = RgbImage::new(width, height);
+
+    for (x, y, pixel) in rgba.enumerate_pixels() {
+        let alpha = pixel[3] as u32;
+        let inverse_alpha = 255 - alpha;
+        let blend = |foreground: u8, background: u8| -> u8 {
+            ((foreground as u32 * alpha + background as u32 * inverse_alpha + 127) / 255) as u8
+        };
+        rgb.put_pixel(
+            x,
+            y,
+            Rgb([
+                blend(pixel[0], background.r),
+                blend(pixel[1], background.g),
+                blend(pixel[2], background.b),
+            ]),
+        );
+    }
+
+    DynamicImage::ImageRgb8(rgb)
+}
+
+fn resize_image(img: DynamicImage, options: ConversionOptions) -> DynamicImage {
+    let Some(resize) = options.resize else {
         return img;
     };
     let (width, height) = img.dimensions();
-    if options.max_width == 0 || width <= options.max_width {
+    if resize.max_width == 0 || width <= resize.max_width {
         return img;
     }
 
-    let ratio = options.max_width as f64 / width as f64;
+    let ratio = resize.max_width as f64 / width as f64;
     let resized_height = ((height as f64 * ratio).round() as u32).max(1);
-    img.resize_exact(options.max_width, resized_height, FilterType::Lanczos3)
+    img.resize_exact(resize.max_width, resized_height, FilterType::Lanczos3)
 }
 
 fn ensure_output_available(output_path: &str) -> Result<()> {
@@ -146,7 +210,13 @@ pub fn convert_image_silent(
     format: OutputFormat,
     quality: f32,
 ) -> Result<ConvertStats> {
-    convert_image_silent_with_options(input_path, output_path, format, quality, None)
+    convert_image_silent_with_conversion_options(
+        input_path,
+        output_path,
+        format,
+        quality,
+        ConversionOptions::default(),
+    )
 }
 
 /// 이미지 변환 (출력 없음). 리사이즈 같은 추가 옵션을 적용할 때 사용
@@ -157,14 +227,34 @@ pub fn convert_image_silent_with_options(
     quality: f32,
     resize: Option<ResizeOptions>,
 ) -> Result<ConvertStats> {
+    convert_image_silent_with_conversion_options(
+        input_path,
+        output_path,
+        format,
+        quality,
+        ConversionOptions {
+            resize,
+            ..ConversionOptions::default()
+        },
+    )
+}
+
+/// 이미지 변환 (출력 없음). 리사이즈와 JPEG 배경색 같은 추가 옵션을 적용할 때 사용
+pub fn convert_image_silent_with_conversion_options(
+    input_path: &str,
+    output_path: &str,
+    format: OutputFormat,
+    quality: f32,
+    options: ConversionOptions,
+) -> Result<ConvertStats> {
     validate_output_extension(output_path, format)?;
     let input_size = fs::metadata(input_path)?.len();
     ensure_output_available(output_path)?;
     let img = image::open(input_path)?;
     let (width, height) = img.dimensions();
-    let img = resize_image(img, resize);
+    let img = resize_image(img, options);
     let (output_width, output_height) = img.dimensions();
-    let data = encode_to(&img, format, quality)?;
+    let data = encode_to(&img, format, quality, options)?;
     write_output_file(output_path, &data)?;
     let output_size = fs::metadata(output_path)?.len();
     Ok(ConvertStats {
@@ -184,7 +274,13 @@ pub fn convert_image(
     format: OutputFormat,
     quality: f32,
 ) -> Result<()> {
-    convert_image_with_options(input_path, output_path, format, quality, None)
+    convert_image_with_conversion_options(
+        input_path,
+        output_path,
+        format,
+        quality,
+        ConversionOptions::default(),
+    )
 }
 
 /// 단일 이미지 변환 (진행률 표시 + 결과 출력). 리사이즈 같은 추가 옵션을 적용할 때 사용
@@ -194,6 +290,26 @@ pub fn convert_image_with_options(
     format: OutputFormat,
     quality: f32,
     resize: Option<ResizeOptions>,
+) -> Result<()> {
+    convert_image_with_conversion_options(
+        input_path,
+        output_path,
+        format,
+        quality,
+        ConversionOptions {
+            resize,
+            ..ConversionOptions::default()
+        },
+    )
+}
+
+/// 단일 이미지 변환 (진행률 표시 + 결과 출력). 리사이즈와 JPEG 배경색 같은 추가 옵션을 적용할 때 사용
+pub fn convert_image_with_conversion_options(
+    input_path: &str,
+    output_path: &str,
+    format: OutputFormat,
+    quality: f32,
+    options: ConversionOptions,
 ) -> Result<()> {
     validate_output_extension(output_path, format)?;
 
@@ -219,7 +335,7 @@ pub fn convert_image_with_options(
 
     pb.set_position(35);
     pb.set_message("크기 조정 중...");
-    let img = resize_image(img, resize);
+    let img = resize_image(img, options);
     let (output_width, output_height) = img.dimensions();
 
     pb.set_position(40);
@@ -232,7 +348,7 @@ pub fn convert_image_with_options(
             ""
         }
     ));
-    let data = encode_to(&img, format, quality)?;
+    let data = encode_to(&img, format, quality, options)?;
 
     pb.set_position(80);
     pb.set_message("파일 저장 중...");
@@ -323,5 +439,35 @@ fn pick_reduction_emoji(reduction: f64) -> &'static str {
         "✅"
     } else {
         "📊"
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use image::{Rgba, RgbaImage};
+
+    #[test]
+    fn flatten_for_jpeg_composites_transparent_pixels_over_background() {
+        let mut rgba = RgbaImage::new(2, 1);
+        rgba.put_pixel(0, 0, Rgba([255, 0, 0, 0]));
+        rgba.put_pixel(1, 0, Rgba([255, 0, 0, 255]));
+        let img = DynamicImage::ImageRgba8(rgba);
+
+        let flattened = flatten_for_jpeg(&img, JpegBackground::white()).to_rgb8();
+
+        assert_eq!(flattened.get_pixel(0, 0).0, [255, 255, 255]);
+        assert_eq!(flattened.get_pixel(1, 0).0, [255, 0, 0]);
+    }
+
+    #[test]
+    fn flatten_for_jpeg_blends_partial_alpha() {
+        let mut rgba = RgbaImage::new(1, 1);
+        rgba.put_pixel(0, 0, Rgba([255, 0, 0, 128]));
+        let img = DynamicImage::ImageRgba8(rgba);
+
+        let flattened = flatten_for_jpeg(&img, JpegBackground::black()).to_rgb8();
+
+        assert_eq!(flattened.get_pixel(0, 0).0, [128, 0, 0]);
     }
 }
