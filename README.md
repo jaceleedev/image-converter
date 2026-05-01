@@ -1,13 +1,13 @@
 # 🖼️ Image Converter
 
-여러 이미지 포맷을 양방향으로 변환하는 고성능 Rust CLI 도구. WebP/AVIF 압축뿐 아니라 PNG/JPEG 로의 역변환도 지원합니다.
+웹 개발에 필요한 이미지를 대화형 안내로 변환하는 Rust CLI 도구. WebP/AVIF 압축뿐 아니라 PNG/JPEG 로의 역변환도 지원합니다.
 
 ## ✨ 주요 기능
 
 - **양방향 포맷 변환**: PNG/JPG/JPEG/WebP/AVIF/TIFF/BMP/ICO → PNG/JPG/WebP/AVIF
 - **단일 파일 + 디렉토리 일괄 변환**: 입력이 디렉토리이면 자동으로 일괄 모드 (rayon 으로 멀티코어 병렬 처리)
 - **재귀 변환**: `--recursive` 옵션으로 하위 폴더까지 한 번에 변환 (구조 그대로 미러링)
-- **대화형 모드**: 단일/디렉토리 모드를 단계별로 안내
+- **대화형 기본 실행**: 인자 없이 실행하면 단일/디렉토리 변환을 단계별로 안내
 - **용량 비교**: 변환 전후 파일 크기 및 감소율 표시 (배치 모드는 합계까지)
 - **진행 상황 표시**: 실시간 진행률 표시
 - **품질 설정**: 1-100% 품질 조정 가능 (PNG 는 무손실이라 자동 무시)
@@ -62,7 +62,7 @@ docker compose run --rm dev cargo build --release
 # 대화형 모드 실행
 docker compose run --rm dev cargo run --release
 
-# 명령줄 모드 실행
+# 자동화용 명령줄 모드 실행
 docker compose run --rm dev cargo run --release -- -i input.png -o output.webp -f webp
 
 # 컨테이너 안에서 셸 열기
@@ -111,7 +111,7 @@ RUST_IMAGE=rust:1.94-trixie docker compose build
 
 ## 🚀 사용법
 
-### 대화형 모드 (추천) 🌟
+### 기본 사용: 대화형 모드 🌟
 
 ```bash
 ./target/release/image_converter
@@ -133,7 +133,11 @@ RUST_IMAGE=rust:1.94-trixie docker compose build
 6. (디렉토리 모드만) 스레드 수 (1 이상, 비워두면 모든 코어 사용)
 7. 출력 경로 확인
 
-### 명령줄 모드 - 단일 파일
+### 자동화용 명령줄 모드
+
+반복 작업이나 스크립트에 넣어야 할 때만 `-i`, `-o`, `-f` 옵션을 사용합니다. 일반 사용은 대화형 모드를 권장합니다.
+
+#### 단일 파일
 
 ```bash
 # WebP로 변환 (품질 90%)
@@ -155,7 +159,7 @@ RUST_IMAGE=rust:1.94-trixie docker compose build
 ./target/release/image_converter -i scan.tiff -o scan.webp -f webp -q 85
 ```
 
-### 명령줄 모드 - 디렉토리 일괄 변환
+#### 디렉토리 일괄 변환
 
 입력 경로가 디렉토리이면 자동으로 일괄 변환 모드로 동작합니다. 변환은 **rayon** 을 통해 멀티코어로 병렬 처리됩니다 (큰 폴더에서 큰 속도 향상).
 
