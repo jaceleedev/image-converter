@@ -9,7 +9,7 @@
 ```
 src/
   main.rs         # CLI 인자 파서 단위 테스트 (#[cfg(test)] mod tests)
-  interactive.rs  # 대화형 모드 검증/경로 빌더 단위 테스트 (#[cfg(test)] mod tests)
+  interactive.rs  # 대화형 모드 검증/경로/옵션 단위 테스트 (#[cfg(test)] mod tests)
   lib.rs          # 테스트용 함수들
   tests/
     mod.rs        # 테스트 모듈 선언
@@ -187,6 +187,15 @@ cargo test --release
 19. **`test_batch_conversion_with_resize_option`**
     - 일괄 변환에서도 같은 최대 가로 크기가 모든 파일에 적용되는지 확인
 
+### 🎨 JPEG 배경색 테스트
+
+20. **`test_jpeg_background_flattens_transparency`**
+    - 투명 PNG 를 JPEG 로 변환할 때 지정한 배경색이 투명 영역에 적용되는지 확인
+
+21. **`flatten_for_jpeg_*`** (2개)
+    - 완전 투명 픽셀은 배경색으로 합성되고, 완전 불투명 픽셀은 원본 색을 유지하는지 확인
+    - 부분 투명 픽셀이 알파 값에 맞춰 배경색과 섞이는지 확인
+
 ### 🔁 다중 포맷 입출력 테스트
 
 16. **`test_png_output_from_webp_input`**
@@ -290,6 +299,10 @@ cargo test --release
 43. **`default_output_path_for_dir_*`** (2개)
     - `{dirname}_converted_{format}` 패턴 (예: `photos` + webp → `photos_converted_webp`), trailing slash (`/tmp/photos/`) 정상 처리
 
+44. **`parse_hex_color_*` / `jpeg_background_options_map_defaults`** (3개)
+    - `#RRGGBB` 와 `RRGGBB` 입력을 JPEG 배경색으로 파싱하는지 확인
+    - 잘못된 색상 입력을 거부하고, 흰색/검정/직접 입력 선택지 매핑을 검증
+
 ## 테스트 매크로
 
 ### `test_description!`
@@ -348,7 +361,7 @@ fn test_new_feature() {
 
 ## 테스트 커버리지
 
-현재 테스트는 다음 영역을 커버합니다 (총 66개):
+현재 테스트는 다음 영역을 커버합니다 (총 72개):
 - ✅ 파일 크기 포맷팅
 - ✅ 출력 요약 라벨 (PNG 무손실 / 손실 포맷 품질 표시)
 - ✅ 출력 포맷별 허용 확장자 매칭
@@ -356,6 +369,7 @@ fn test_new_feature() {
 - ✅ 품질 파라미터 검증
 - ✅ 대화형 품질 프리셋 순서와 값 매핑
 - ✅ 대화형 리사이즈 입력 검증과 단일/일괄 리사이즈 동작
+- ✅ JPEG 배경색 입력 검증과 투명 영역 배경 합성
 - ✅ 디렉토리 일괄 변환 (재귀 / 비재귀)
 - ✅ 출력 덮어쓰기 방지 (단일 변환 에러 / 일괄 변환 건너뜀)
 - ✅ 출력 확장자 불일치 방지 (단일 변환 에러 / 대화형 입력 검증)

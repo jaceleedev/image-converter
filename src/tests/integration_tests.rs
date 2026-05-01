@@ -1,10 +1,11 @@
 use crate::tests::test_utils::create_test_image;
 use crate::{
     convert_directory, convert_directory_with_options, convert_image_silent,
-    convert_image_silent_with_options, ConverterError, OutputFormat, ResizeOptions,
+    convert_image_silent_with_conversion_options, convert_image_silent_with_options,
+    ConversionOptions, ConverterError, JpegBackground, OutputFormat, ResizeOptions,
 };
 use crate::{test_description, test_step, test_success};
-use image::GenericImageView;
+use image::{GenericImageView, Rgba, RgbaImage};
 use std::fs;
 use tempfile::TempDir;
 
@@ -277,6 +278,43 @@ fn test_resize_option_does_not_upscale() -> Result<(), Box<dyn std::error::Error
     assert_eq!(stats.output_width, 50);
     assert_eq!(stats.output_height, 25);
     test_success!("원본보다 큰 최대 가로 크기는 확대하지 않음");
+
+    Ok(())
+}
+
+#[test]
+fn test_jpeg_background_flattens_transparency() -> Result<(), Box<dyn std::error::Error>> {
+    test_description!("JPEG 배경색 합성 테스트");
+    test_step!("투명 PNG 를 JPEG 로 변환할 때 지정한 배경색이 적용되는지 확인");
+
+    let temp_dir = TempDir::new()?;
+    let input_path = temp_dir.path().join("transparent.png");
+    let output_path = temp_dir.path().join("transparent.jpg");
+    let mut rgba = RgbaImage::new(16, 16);
+    for pixel in rgba.pixels_mut() {
+        *pixel = Rgba([255, 0, 0, 0]);
+    }
+    rgba.save(&input_path)?;
+
+    convert_image_silent_with_conversion_options(
+        input_path.to_str().unwrap(),
+        output_path.to_str().unwrap(),
+        OutputFormat::Jpeg,
+        100.0,
+        ConversionOptions {
+            jpeg_background: Some(JpegBackground::white()),
+            ..ConversionOptions::default()
+        },
+    )?;
+
+    let img = image::open(&output_path)?.to_rgb8();
+    let pixel = img.get_pixel(0, 0);
+    assert!(
+        pixel[0] > 240 && pixel[1] > 240 && pixel[2] > 240,
+        "투명 픽셀이 흰색 배경에 가깝게 합성되어야 함: {:?}",
+        pixel
+    );
+    test_success!("투명 영역 JPEG 흰색 배경 합성 확인");
 
     Ok(())
 }

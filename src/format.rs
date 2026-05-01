@@ -66,6 +66,10 @@ impl OutputFormat {
     pub fn is_avif(self) -> bool {
         matches!(self, Self::Avif)
     }
+
+    pub fn is_jpeg(self) -> bool {
+        matches!(self, Self::Jpg | Self::Jpeg)
+    }
 }
 
 impl fmt::Display for OutputFormat {

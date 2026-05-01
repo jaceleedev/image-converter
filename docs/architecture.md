@@ -66,12 +66,14 @@ image_converter/
   - WebP: `webp::Encoder::from_image` + `encode(quality)`
   - AVIF: `ravif::Encoder` (rav1e 기반, RGBA 추출 후 인코딩) — `with_bit_depth(BitDepth::Eight)` 로 **8-bit 강제** (image 0.24 디코더와 호환성 유지)
   - PNG: `image` 크레이트의 `write_to(&mut Cursor, ImageOutputFormat::Png)` — 무손실, quality 무시
-  - JPG/JPEG: 알파 채널을 가질 수 없어 `to_rgb8()` 으로 다운샘플 후 `ImageOutputFormat::Jpeg(quality_u8)`
+  - JPG/JPEG: 알파 채널을 가질 수 없어 RGB 로 변환 후 `ImageOutputFormat::Jpeg(quality_u8)`. `JpegBackground` 가 지정되면 인코딩 전에 투명 픽셀을 해당 배경색 위에 합성
 - `convert_image`: 진행률 + 결과 출력 포함
 - `convert_image_silent`: 출력 없는 변환 (`ConvertStats` 반환). 배치 모드와 테스트에서 사용
 - `convert_image_with_options` / `convert_image_silent_with_options`: `ResizeOptions` 같은 변환 전처리 옵션을 적용할 때 사용
+- `convert_image_with_conversion_options` / `convert_image_silent_with_conversion_options`: `ConversionOptions` 로 리사이즈와 JPEG 배경색을 함께 전달할 때 사용
 - 두 함수 모두 동일한 내부 인코딩 헬퍼를 호출 (코드 중복 제거)
 - 리사이즈 옵션은 인코딩 전에 적용하며, 최대 가로 크기보다 큰 이미지만 비율 유지 축소 (`Lanczos3`, 확대 없음)
+- JPEG 배경색 옵션은 JPEG 인코딩 직전에 적용하며, 기본 API 에서는 기존 동작을 유지하고 대화형 모드에서만 값을 질문
 - `ConvertStats` 는 원본 크기와 출력 크기를 함께 담아 단일 변환 요약에서 리사이즈 결과를 표시할 수 있음
 - 단일 변환은 출력 파일 확장자가 선택 포맷과 다르면 인코딩 전에 `OutputExtensionMismatch` 로 중단
 - 출력 파일은 `create_new` 방식으로 생성하여 기존 파일을 덮어쓰지 않음. 이미 있으면 `OutputExists` 에러 반환
@@ -82,6 +84,7 @@ image_converter/
   - 입력 화이트리스트: `png`/`jpg`/`jpeg`/`webp`/`avif`/`tiff`/`tif`/`bmp`/`ico`
   - 시그니처 끝의 `threads: Option<usize>` 인자로 스레드 수 명시 가능. `None` 이면 rayon 전역 풀 (= `RAYON_NUM_THREADS` 또는 CPU 코어 수), `Some(n)` 이면 `ThreadPoolBuilder::new().num_threads(n).build()` 로 local pool 만들고 `pool.install(|| par_iter)` 패턴으로 scoped 실행. 전역 풀을 변경하지 않아 라이브러리 친화적
 - `convert_directory_with_options`: 폴더 전체에 같은 리사이즈 옵션을 적용할 때 사용
+- `convert_directory_with_conversion_options`: 폴더 전체에 같은 `ConversionOptions` 를 적용해 리사이즈와 JPEG 배경색을 함께 전달할 때 사용
 - 각 파일은 `process_one` 헬퍼가 처리하고 변환/건너뜀/실패 결과를 반환 — 한 파일이 실패하거나 기존 출력 파일 때문에 건너뛰어도 나머지는 그대로 진행
 - 결과는 직렬 합산하여 `BatchSummary` 통계로 반환 (`succeeded` / `skipped` / `failed`)
 - 진행률 바 (`indicatif::ProgressBar`) 와 `pb.println` 은 thread-safe (내부 Mutex)
@@ -95,10 +98,11 @@ image_converter/
 - 출력 포맷 선택지: WebP 웹 권장 / AVIF 작은 용량 / PNG 무손실 / JPEG 사진 호환성
 - 손실 포맷 품질 프리셋은 웹 권장(90%) 을 기본값으로 두고, 균형(80%) / 작게 저장(70%) / 원본에 가깝게(100%) / 직접 입력을 제공
 - PNG 출력 선택 시 품질 단계는 자동으로 스킵 (무손실 포맷이라 의미 없음)
+- JPEG 출력 선택 시 투명 영역 배경색을 질문. 기본값은 흰색이며, 검정 또는 `#RRGGBB` 직접 입력을 지원
 - 품질 선택 뒤에 최대 가로 크기 기반 리사이즈 여부를 질문. 기본값은 미적용이며, 원본보다 큰 최대 가로 크기는 확대하지 않음
 - 단일 파일 기본 출력 경로는 입력 파일과 같은 디렉토리에서 확장자만 바꾼 경로를 우선 제안하고, 이미 있으면 `_converted`, `_converted_2` 순서로 충돌 회피
 - 단일 파일 출력 경로 입력 단계에서 선택 포맷과 확장자 불일치를 검증해 재입력 유도
-- 검증 클로저와 디폴트 출력 경로 빌더는 순수 함수로 분리 (`validate_input_path`, `validate_quality_input`, `validate_threads_input`, `validate_output_file_path`, `default_output_path_for_file`, `default_output_path_for_dir`) — `#[cfg(test)] mod tests` 에서 단위 테스트
+- 검증 클로저와 디폴트 출력 경로 빌더는 순수 함수로 분리 (`validate_input_path`, `validate_quality_input`, `validate_threads_input`, `validate_resize_width_input`, `parse_hex_color`, `validate_output_file_path`, `default_output_path_for_file`, `default_output_path_for_dir`) — `#[cfg(test)] mod tests` 에서 단위 테스트
 - 단계별 사용자 입력 처리
 
 ### `utils.rs` (공통 유틸리티)
@@ -109,7 +113,7 @@ image_converter/
 
 ### `lib.rs` (라이브러리 인터페이스)
 
-- 공개 API re-export (`convert_image`, `convert_image_silent`, `convert_directory`, ...)
+- 공개 API re-export (`convert_image`, `convert_image_silent`, `convert_directory`, `ConversionOptions`, `JpegBackground`, ...)
 - `main.rs`도 이 라이브러리를 통해 변환 함수에 접근하여 코드 중복 컴파일을 피함
 
 ### `tests/` (테스트 코드)

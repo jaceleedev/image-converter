@@ -12,6 +12,25 @@
 
 ## 최근 작업 로그
 
+### 2026-05-01 — JPEG 배경색 옵션 추가
+
+- 대화형 모드에서 JPEG 출력 선택 시 "투명 영역 배경색" 질문 추가
+  - 기본값은 흰색(`#FFFFFF`)
+  - 검정(`#000000`) 과 `#RRGGBB` 직접 입력 지원
+  - JPEG 출력일 때만 질문하고, PNG/WebP/AVIF 출력 흐름은 그대로 유지
+- `JpegBackground` 와 `ConversionOptions` 추가
+  - 기존 `convert_image` / `convert_image_silent` / `convert_directory` 시그니처는 유지
+  - 기존 리사이즈 전용 `*_with_options` API 도 유지
+  - 새 `*_with_conversion_options` API 로 리사이즈와 JPEG 배경색을 함께 전달
+- JPEG 인코딩 전 알파 채널을 지정 배경색 위에 합성하도록 추가
+- 회귀/단위 테스트 6개 추가
+  - `test_jpeg_background_flattens_transparency`
+  - `flatten_for_jpeg_*` 2개
+  - `parse_hex_color_*` 2개
+  - `jpeg_background_options_map_defaults`
+- README / docs/architecture.md / docs/testing.md 갱신
+- `./scripts/check.sh` 성공 — fmt 통과, Clippy 경고 없음, lib 60개 + bin 12개 = 총 72개 테스트 통과
+
 ### 2026-05-01 — 대화형 리사이즈 옵션 추가
 
 - 대화형 모드에 "가로 크기를 줄일까요?" 질문 추가
@@ -311,7 +330,8 @@
 - **외부 10-bit AVIF 입력은 명시적으로 미지원** — `image` 0.24 의 디코더 한계. 사용자가 다른 도구로 만든 10-bit AVIF 를 입력으로 쓰면 `Only 8 bit depth is supported but was 10` 에러. README 매트릭스 표 비고에 한 줄 명시. `image` 0.25 업그레이드를 향후 후보로 정리.
 - **A안 채택 (1단계에서 AVIF 입력 제외)** — `image` 크레이트의 `avif-decoder` feature 는 `dav1d` 시스템 라이브러리 (`libdav1d-dev` apt / `dav1d` brew) 를 요구. 1단계는 시스템 의존성 추가 없는 작업으로 분리하고, B안 (AVIF 입력) 은 별도 PR 로 진행해 의존성 변경의 의도를 명확히 함.
 - **PNG quality 는 조용히 무시** — `encode_to("png", ...)` 가 quality 인자를 받지만 사용하지 않음. CLI 와 대화형 모드에서 사용자에게 "무손실이라 적용 안 됨" 한 줄 안내 + `-q` doc 주석에도 명시. 에러로 거부하지 않는 이유는 배치 모드에서 한 quality 값을 여러 출력 포맷에 공통 적용하는 흐름을 깨지 않기 위함.
-- **JPEG 출력 시 `to_rgb8()` 로 명시적 RGB 다운샘플** — `image` 의 `write_to(..., ImageOutputFormat::Jpeg(q))` 는 RGBA 입력도 받지만 동작이 버전에 따라 다를 수 있음. 명시적으로 `DynamicImage::ImageRgb8(img.to_rgb8())` 로 변환 후 인코딩하여 알파 채널 처리를 확정적으로 만듦. 알파 픽셀은 검정 배경 위에 합성된 형태로 처리됨 (image 크레이트 기본 동작).
+- **JPEG 출력 시 명시적 RGB 변환 사용** — `image` 의 `write_to(..., ImageOutputFormat::Jpeg(q))` 는 RGBA 입력도 받지만 동작이 버전에 따라 다를 수 있음. 기본 API 에서는 기존처럼 `DynamicImage::ImageRgb8(img.to_rgb8())` 로 변환 후 인코딩하고, `ConversionOptions.jpeg_background` 가 있으면 인코딩 전에 알파 채널을 지정 배경색 위에 합성한다.
+- **대화형 JPEG 배경 기본값은 흰색** — 투명 PNG/WebP 아이콘을 JPEG 로 만들 때 웹 페이지의 기본 배경과 가장 자주 맞는 값이라 `#FFFFFF` 를 기본 선택지로 둔다. 검정과 직접 입력(`#RRGGBB`)도 제공하되, CLI 플래그는 아직 늘리지 않고 대화형 우선 흐름에서만 질문한다.
 - **`jpg` 와 `jpeg` 를 같은 분기로** — `match` 의 or-pattern (`"jpg" | "jpeg"`) 으로 한 분기에서 처리. 사용자 친화적이면서 코드 중복 없음. 출력 확장자도 `.jpg` 와 `.jpeg` 안에서는 사용자가 명시한 그대로 사용 (둘 다 동일 JPEG 컨테이너).
 - **WebP 픽스처는 webp 크레이트로 생성** — `image::ImageBuffer::save("path.webp")` 는 `image` 의 `webp-encoder` feature (`libwebp` 의존) 가 필요해서 사용 못 함. 테스트에서는 PNG 시드를 만든 후 `convert_image_silent(seed.png, fixture.webp, "webp", ...)` 로 우회.
 - **rayon `par_iter().map().collect()` + 직렬 합산** — Atomic 카운터나 `fold/reduce` 보다 단순. `BatchSummary` 구조체 변경 없이 결과만 병렬 수집 후 한 번에 누적.
@@ -354,6 +374,7 @@
 - [x] **대화형 기본 출력 경로 개선** — 완료. 같은 디렉토리의 확장자 교체 경로를 우선 제안하고, 기존 파일이 있으면 `_converted`, `_converted_2` 로 충돌 회피. 59 테스트 통과.
 - [x] **대화형 모드 문구/선택지 polish** — 완료. 포맷 선택지에 용도 힌트를 붙이고, 품질 프리셋을 웹 권장(90%) 기본값 중심으로 정리. 61 테스트 통과.
 - [x] **대화형 리사이즈 옵션** — 완료. 최대 가로 크기 기반 비율 유지 축소를 단일/일괄 변환에 적용. 원본보다 작을 때만 축소하고 확대하지 않음. 66 테스트 통과.
+- [x] **JPEG 배경색 옵션** — 완료. 대화형 JPEG 출력에서 투명 영역 배경색을 선택하고, 인코딩 전 알파 합성을 적용. 72 테스트 통과.
 - [ ] **`image` 0.25 업그레이드** — 10-bit AVIF 디코딩 지원. breaking change 가 있어 별도 작업. 업그레이드 후 ravif 의 8-bit 강제도 풀어줄 수 있음
 - [ ] **HEIC 입력** — `libheif` 시스템 의존성 + `libheif-rs` 등 외부 크레이트. 부담 큼.
 - [ ] **대화형 모드 통합 테스트** — `dialoguer::Select` 가 PTY 필요해서 `rexpect` 등 도입 부담. 우선순위 낮음 (위 리팩토링으로 검증/경로 로직은 단위 테스트로 커버됨).

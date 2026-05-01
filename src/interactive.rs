@@ -2,8 +2,11 @@ use colored::*;
 use dialoguer::{theme::ColorfulTheme, Confirm, Input, Select};
 use std::path::{Path, PathBuf};
 
-use crate::batch::convert_directory_with_options;
-use crate::converter::{convert_image_with_options, validate_output_extension, ResizeOptions};
+use crate::batch::convert_directory_with_conversion_options;
+use crate::converter::{
+    convert_image_with_conversion_options, validate_output_extension, ConversionOptions,
+    JpegBackground, ResizeOptions,
+};
 use crate::format::OutputFormat;
 
 fn validate_input_path(input: &str, is_batch: bool) -> Result<(), &'static str> {
@@ -39,6 +42,19 @@ fn validate_resize_width_input(input: &str) -> Result<(), &'static str> {
         Ok(n) if n >= 1 => Ok(()),
         _ => Err("1 이상의 픽셀 값을 입력하세요"),
     }
+}
+
+fn parse_hex_color(input: &str) -> Result<JpegBackground, String> {
+    let trimmed = input.trim();
+    let trimmed = trimmed.strip_prefix('#').unwrap_or(trimmed);
+    if trimmed.len() != 6 || !trimmed.chars().all(|c| c.is_ascii_hexdigit()) {
+        return Err("#RRGGBB 형식으로 입력하세요".to_string());
+    }
+
+    let r = u8::from_str_radix(&trimmed[0..2], 16).map_err(|_| "빨간색 값을 읽을 수 없습니다")?;
+    let g = u8::from_str_radix(&trimmed[2..4], 16).map_err(|_| "초록색 값을 읽을 수 없습니다")?;
+    let b = u8::from_str_radix(&trimmed[4..6], 16).map_err(|_| "파란색 값을 읽을 수 없습니다")?;
+    Ok(JpegBackground { r, g, b })
 }
 
 fn validate_output_file_path(input: &str, format: OutputFormat) -> Result<(), String> {
@@ -95,6 +111,18 @@ fn quality_for_selection(selection: usize) -> Option<f32> {
         1 => Some(80.0),
         2 => Some(70.0),
         3 => Some(100.0),
+        _ => None,
+    }
+}
+
+fn jpeg_background_options() -> [&'static str; 3] {
+    ["흰색 (#FFFFFF)", "검정 (#000000)", "직접 입력"]
+}
+
+fn jpeg_background_for_selection(selection: usize) -> Option<JpegBackground> {
+    match selection {
+        0 => Some(JpegBackground::white()),
+        1 => Some(JpegBackground::black()),
         _ => None,
     }
 }
@@ -175,6 +203,28 @@ pub fn interactive_mode() -> crate::error::Result<()> {
         }
     };
 
+    let jpeg_background = if format.is_jpeg() {
+        let background_options = jpeg_background_options();
+        let background_selection = Select::with_theme(&ColorfulTheme::default())
+            .with_prompt("투명 영역 배경색")
+            .items(&background_options)
+            .default(0)
+            .interact()?;
+
+        match jpeg_background_for_selection(background_selection) {
+            Some(background) => Some(background),
+            None => {
+                let raw: String = Input::with_theme(&ColorfulTheme::default())
+                    .with_prompt("배경색 (#RRGGBB)")
+                    .validate_with(|input: &String| parse_hex_color(input).map(|_| ()))
+                    .interact_text()?;
+                Some(parse_hex_color(&raw).expect("validate 통과"))
+            }
+        }
+    } else {
+        None
+    };
+
     let resize = if Confirm::with_theme(&ColorfulTheme::default())
         .with_prompt("가로 크기를 줄일까요?")
         .default(false)
@@ -214,6 +264,10 @@ pub fn interactive_mode() -> crate::error::Result<()> {
     };
 
     // 출력 경로
+    let conversion_options = ConversionOptions {
+        resize,
+        jpeg_background,
+    };
     let input_path_buf = PathBuf::from(&input_path);
     if is_batch {
         let default_output = default_output_path_for_dir(&input_path_buf, format);
@@ -223,14 +277,14 @@ pub fn interactive_mode() -> crate::error::Result<()> {
             .default(default_output)
             .interact_text()?;
 
-        convert_directory_with_options(
+        convert_directory_with_conversion_options(
             &input_path,
             &output_path,
             format,
             quality,
             recursive,
             threads,
-            resize,
+            conversion_options,
         )?;
     } else {
         let default_output = default_output_path_for_file(&input_path_buf, format);
@@ -241,7 +295,13 @@ pub fn interactive_mode() -> crate::error::Result<()> {
             .validate_with(|input: &String| validate_output_file_path(input, format))
             .interact_text()?;
 
-        convert_image_with_options(&input_path, &output_path, format, quality, resize)?;
+        convert_image_with_conversion_options(
+            &input_path,
+            &output_path,
+            format,
+            quality,
+            conversion_options,
+        )?;
     }
 
     Ok(())
@@ -342,6 +402,43 @@ mod tests {
         assert!(validate_resize_width_input("-1").is_err());
         assert!(validate_resize_width_input("abc").is_err());
         assert!(validate_resize_width_input("").is_err());
+    }
+
+    #[test]
+    fn parse_hex_color_accepts_hash_and_plain_values() {
+        assert_eq!(parse_hex_color("#ffffff").unwrap(), JpegBackground::white());
+        assert_eq!(parse_hex_color("000000").unwrap(), JpegBackground::black());
+        assert_eq!(
+            parse_hex_color("#1A2b3C").unwrap(),
+            JpegBackground {
+                r: 0x1A,
+                g: 0x2B,
+                b: 0x3C,
+            }
+        );
+    }
+
+    #[test]
+    fn parse_hex_color_rejects_invalid_values() {
+        assert!(parse_hex_color("#fff").is_err());
+        assert!(parse_hex_color("##ffffff").is_err());
+        assert!(parse_hex_color("#gggggg").is_err());
+        assert!(parse_hex_color("").is_err());
+    }
+
+    #[test]
+    fn jpeg_background_options_map_defaults() {
+        let options = jpeg_background_options();
+        assert_eq!(options[0], "흰색 (#FFFFFF)");
+        assert_eq!(
+            jpeg_background_for_selection(0),
+            Some(JpegBackground::white())
+        );
+        assert_eq!(
+            jpeg_background_for_selection(1),
+            Some(JpegBackground::black())
+        );
+        assert_eq!(jpeg_background_for_selection(2), None);
     }
 
     #[test]
