@@ -26,3 +26,6 @@ rayon = "1.10"
 [dev-dependencies]
 tempfile = "3.0"
 colored = "2.1"
+
+[target.'cfg(unix)'.dev-dependencies]
+rexpect = "0.7.0"
