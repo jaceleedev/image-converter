@@ -263,8 +263,10 @@ cargo test --release
     - 선택 포맷과 출력 파일 확장자가 일치하는지 검증
     - JPEG 는 `.jpg`/`.jpeg` 별칭을 모두 허용하고, 불일치/확장자 없음은 거부
 
-40. **`default_output_path_for_file_*`** (2개)
-    - `{stem}_converted.{format}` 패턴 (예: `photo.png` + webp → `photo_converted.webp`), 확장자 없는 입력 (`no_ext` + png → `no_ext_converted.png`) 처리
+40. **`default_output_path_for_file_*`** (5개)
+    - 입력 파일과 같은 디렉토리에서 확장자만 바꾼 기본값 제안 (예: `photo.png` + webp → `photo.webp`)
+    - 자연스러운 기본 출력 경로가 이미 있으면 `_converted`, `_converted_2` 순서로 충돌 회피
+    - 확장자 없는 입력 (`no_ext` + png → `no_ext.png`) 처리
 
 41. **`default_output_path_for_dir_*`** (2개)
     - `{dirname}_converted_{format}` 패턴 (예: `photos` + webp → `photos_converted_webp`), trailing slash (`/tmp/photos/`) 정상 처리
@@ -327,7 +329,7 @@ fn test_new_feature() {
 
 ## 테스트 커버리지
 
-현재 테스트는 다음 영역을 커버합니다 (총 56개):
+현재 테스트는 다음 영역을 커버합니다 (총 59개):
 - ✅ 파일 크기 포맷팅
 - ✅ 출력 요약 라벨 (PNG 무손실 / 손실 포맷 품질 표시)
 - ✅ 출력 포맷별 허용 확장자 매칭
@@ -336,6 +338,7 @@ fn test_new_feature() {
 - ✅ 디렉토리 일괄 변환 (재귀 / 비재귀)
 - ✅ 출력 덮어쓰기 방지 (단일 변환 에러 / 일괄 변환 건너뜀)
 - ✅ 출력 확장자 불일치 방지 (단일 변환 에러 / 대화형 입력 검증)
+- ✅ 대화형 단일 파일 기본 출력 경로 (같은 디렉토리, 확장자 교체, 충돌 회피)
 - ✅ 비이미지 파일 자동 스킵
 - ✅ 빈 디렉토리 처리
 - ✅ 에러 처리 (지원하지 않는 형식, 존재하지 않는 파일, 기존 출력 파일)
