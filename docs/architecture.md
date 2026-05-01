@@ -6,12 +6,16 @@
 image_converter/
 ├── .gitignore              # Git 무시 파일 설정
 ├── .dockerignore           # Docker 빌드 컨텍스트 제외 파일
+├── AGENTS.md               # 에이전트 공통 작업 규칙
 ├── Dockerfile              # Rust + nasm + dav1d 개발 컨테이너 이미지
 ├── docker-compose.yml      # 개발/테스트용 컨테이너 실행 설정
 ├── Cargo.toml              # Rust 프로젝트 설정 및 의존성
 ├── README.md               # 프로젝트 사용 가이드
-├── TESTING.md              # 테스트 실행 가이드
-├── PROJECT_STRUCTURE.md    # 이 문서
+├── docs/
+│   ├── README.md           # 개발 문서 인덱스
+│   ├── architecture.md     # 이 문서
+│   ├── testing.md          # 테스트 실행 가이드
+│   └── memory.md           # 작업 로그와 결정 기록
 └── src/
     ├── main.rs             # 진입점 - CLI 인자 처리, 단일/일괄 분기
     ├── lib.rs              # 라이브러리 루트 - 공개 API re-export
@@ -101,7 +105,7 @@ image_converter/
 
 ### Docker 개발 환경
 
-- `Dockerfile`: 공식 Rust Debian 이미지를 기반으로 `nasm`, `libdav1d-dev`, `pkg-config` 를 설치
+- `Dockerfile`: 공식 Rust Debian 이미지를 기반으로 `nasm`, `libdav1d-dev`, `pkg-config`, `rustfmt` 를 설치
 - `docker-compose.yml`: 현재 작업 디렉토리를 `/workspace` 로 마운트하고 Cargo registry/git/target 을 Docker named volume 으로 분리
 - 기본 이미지는 `rust:1-trixie` (`dav1d >= 1.3.0` 필요), 필요 시 `RUST_IMAGE=rust:1.94-trixie docker compose build` 처럼 고정 가능
 
@@ -118,14 +122,18 @@ image_converter/
 ```
 main.rs
   └── image_converter (lib)
+        ├── format.rs (출력 포맷 타입)
         ├── converter.rs (단일 변환)
+        │     ├── format.rs
         │     └── utils.rs
         ├── batch.rs (일괄 변환)
         │     ├── converter.rs (단일 변환을 루프 호출)
+        │     ├── format.rs
         │     └── utils.rs
         ├── interactive.rs (대화형 모드)
         │     ├── converter.rs
-        │     └── batch.rs
+        │     ├── batch.rs
+        │     └── format.rs
         └── tests/ (테스트에서만 사용)
 ```
 
@@ -138,3 +146,10 @@ main.rs
 5. **다국어 지원**: 메시지를 별도 파일로 분리
 
 이 구조는 현재 프로젝트 규모에 적합하며, 향후 확장에도 대응할 수 있습니다.
+
+## 관련 문서
+
+- `README.md`: 사용자용 설치, 사용법, 옵션
+- `AGENTS.md`: 에이전트 공통 작업 규칙
+- `docs/testing.md`: 테스트 실행 방법, 테스트 목록, 매크로 사용법
+- `docs/memory.md`: 작업 컨텍스트, 결정 기록, 진행 중/대기 항목
