@@ -6,6 +6,7 @@
 
 - `architecture.md`: 프로젝트 구조, 모듈별 책임, 의존성 흐름
 - `testing.md`: Docker/로컬 테스트 실행법, 테스트 목록, 테스트 유틸리티
+- `release-notes.md`: 버전별 주요 변경 사항과 지원 범위
 - `memory.md`: 최근 작업 로그, 결정 기록, 진행/대기 항목
 
 ## 문서 관리 규칙
