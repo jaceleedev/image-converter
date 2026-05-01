@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 
 use crate::batch::convert_directory;
 use crate::converter::convert_image;
+use crate::format::OutputFormat;
 
 fn validate_input_path(input: &str, is_batch: bool) -> Result<(), &'static str> {
     let path = Path::new(input);
@@ -33,20 +34,20 @@ fn validate_threads_input(input: &str) -> Result<(), &'static str> {
     }
 }
 
-fn default_output_path_for_file(input: &Path, format: &str) -> String {
+fn default_output_path_for_file(input: &Path, format: OutputFormat) -> String {
     let stem = input
         .file_stem()
         .and_then(|s| s.to_str())
         .unwrap_or("output");
-    format!("{}_converted.{}", stem, format)
+    format!("{}_converted.{}", stem, format.as_str())
 }
 
-fn default_output_path_for_dir(input: &Path, format: &str) -> String {
+fn default_output_path_for_dir(input: &Path, format: OutputFormat) -> String {
     let dir_name = input
         .file_name()
         .and_then(|n| n.to_str())
         .unwrap_or("output");
-    format!("{}_converted_{}", dir_name, format)
+    format!("{}_converted_{}", dir_name, format.as_str())
 }
 
 /// 대화형 모드로 이미지 변환
@@ -85,17 +86,23 @@ pub fn interactive_mode() -> crate::error::Result<()> {
     };
 
     // 출력 형식 선택
-    let formats = vec!["WebP", "AVIF", "PNG", "JPEG"];
+    let formats = [
+        ("WebP", OutputFormat::Webp),
+        ("AVIF", OutputFormat::Avif),
+        ("PNG", OutputFormat::Png),
+        ("JPEG", OutputFormat::Jpeg),
+    ];
+    let format_labels: Vec<&str> = formats.iter().map(|(label, _)| *label).collect();
     let format_selection = Select::with_theme(&ColorfulTheme::default())
         .with_prompt("출력 형식을 선택하세요")
-        .items(&formats)
+        .items(&format_labels)
         .default(0)
         .interact()?;
 
-    let format = formats[format_selection].to_lowercase();
+    let format = formats[format_selection].1;
 
     // 품질 선택 — PNG 는 무손실이라 의미 없으므로 스킵
-    let quality = if format == "png" {
+    let quality = if format.is_png() {
         println!(
             "  {} PNG 는 무손실 포맷이라 품질 설정이 적용되지 않습니다.",
             "ℹ️".bright_blue()
@@ -153,23 +160,30 @@ pub fn interactive_mode() -> crate::error::Result<()> {
     // 출력 경로
     let input_path_buf = PathBuf::from(&input_path);
     if is_batch {
-        let default_output = default_output_path_for_dir(&input_path_buf, &format);
+        let default_output = default_output_path_for_dir(&input_path_buf, format);
 
         let output_path: String = Input::with_theme(&ColorfulTheme::default())
             .with_prompt("출력 디렉토리 경로를 입력하세요")
             .default(default_output)
             .interact_text()?;
 
-        convert_directory(&input_path, &output_path, &format, quality, recursive, threads)?;
+        convert_directory(
+            &input_path,
+            &output_path,
+            format,
+            quality,
+            recursive,
+            threads,
+        )?;
     } else {
-        let default_output = default_output_path_for_file(&input_path_buf, &format);
+        let default_output = default_output_path_for_file(&input_path_buf, format);
 
         let output_path: String = Input::with_theme(&ColorfulTheme::default())
             .with_prompt("출력 파일 경로를 입력하세요")
             .default(default_output)
             .interact_text()?;
 
-        convert_image(&input_path, &output_path, &format, quality)?;
+        convert_image(&input_path, &output_path, format, quality)?;
     }
 
     Ok(())
@@ -245,25 +259,37 @@ mod tests {
     #[test]
     fn default_output_path_for_file_uses_stem() {
         let path = Path::new("/tmp/photo.png");
-        assert_eq!(default_output_path_for_file(path, "webp"), "photo_converted.webp");
+        assert_eq!(
+            default_output_path_for_file(path, OutputFormat::Webp),
+            "photo_converted.webp"
+        );
     }
 
     #[test]
     fn default_output_path_for_file_handles_no_extension() {
         let path = Path::new("/tmp/no_ext");
-        assert_eq!(default_output_path_for_file(path, "png"), "no_ext_converted.png");
+        assert_eq!(
+            default_output_path_for_file(path, OutputFormat::Png),
+            "no_ext_converted.png"
+        );
     }
 
     #[test]
     fn default_output_path_for_dir_uses_dirname() {
         let path = Path::new("/tmp/photos");
-        assert_eq!(default_output_path_for_dir(path, "webp"), "photos_converted_webp");
+        assert_eq!(
+            default_output_path_for_dir(path, OutputFormat::Webp),
+            "photos_converted_webp"
+        );
     }
 
     #[test]
     fn default_output_path_for_dir_handles_trailing_slash() {
         // Path::new("/tmp/photos/") 의 file_name() 도 "photos" 를 반환해야 함
         let path = Path::new("/tmp/photos/");
-        assert_eq!(default_output_path_for_dir(path, "avif"), "photos_converted_avif");
+        assert_eq!(
+            default_output_path_for_dir(path, OutputFormat::Avif),
+            "photos_converted_avif"
+        );
     }
 }

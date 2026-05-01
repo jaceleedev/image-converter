@@ -202,21 +202,27 @@ cargo test --release
 29. **`parse_threads_rejects_non_numeric`**
     - 비숫자(`"abc"`) 와 음수(`"-1"`) 입력 거부 확인
 
+30. **`parse_format_accepts_valid_values_case_insensitive`**
+    - `--format WEBP` 처럼 대문자로 입력해도 `OutputFormat::Webp` 로 파싱되는지 확인
+
+31. **`parse_format_rejects_invalid_value`**
+    - `--format xyz` 같은 미지원 출력 포맷을 clap 단계에서 거부하는지 확인
+
 ### 🎯 대화형 모드 검증 단위 테스트 (`src/interactive.rs`)
 
-30. **`validate_input_path_*`** (4개)
+32. **`validate_input_path_*`** (4개)
     - 존재하지 않는 경로 거부, 단일 모드에 디렉토리 입력 거부, 배치 모드에 파일 입력 거부, 정상 케이스(파일/디렉토리) 통과
 
-31. **`validate_quality_input_*`** (2개)
+33. **`validate_quality_input_*`** (2개)
     - 1.0/50.5/100.0 정상 범위 통과, 0 / 0.99 / 100.01 / -10 / `"abc"` 거부
 
-32. **`validate_threads_input_*`** (2개)
+34. **`validate_threads_input_*`** (2개)
     - 1, 16 통과, 0 / -1 / `"abc"` / 빈 입력 거부
 
-33. **`default_output_path_for_file_*`** (2개)
+35. **`default_output_path_for_file_*`** (2개)
     - `{stem}_converted.{format}` 패턴 (예: `photo.png` + webp → `photo_converted.webp`), 확장자 없는 입력 (`no_ext` + png → `no_ext_converted.png`) 처리
 
-34. **`default_output_path_for_dir_*`** (2개)
+36. **`default_output_path_for_dir_*`** (2개)
     - `{dirname}_converted_{format}` 패턴 (예: `photos` + webp → `photos_converted_webp`), trailing slash (`/tmp/photos/`) 정상 처리
 
 ## 테스트 매크로
@@ -277,7 +283,7 @@ fn test_new_feature() {
 
 ## 테스트 커버리지
 
-현재 테스트는 다음 영역을 커버합니다 (총 41개):
+현재 테스트는 다음 영역을 커버합니다 (총 43개):
 - ✅ 파일 크기 포맷팅
 - ✅ WebP / AVIF 단일 변환
 - ✅ 품질 파라미터 검증
@@ -290,7 +296,7 @@ fn test_new_feature() {
 - ✅ 혼합 입력 포맷 일괄 변환 (PNG + WebP + AVIF + TIFF + BMP → PNG)
 - ✅ 명시적 스레드 수 옵션 (`threads=None` vs `threads=Some(1)` 결과 일관성)
 - ✅ JPG/JPEG 단일 입력 (jpeg→webp, jpeg→png, .jpg 확장자 별칭)
-- ✅ CLI 인자 파서 (`--quality` 1.0~100.0 범위, `--threads` ≥ 1 검증, 비숫자/범위 외 거부)
+- ✅ CLI 인자 파서 (`--quality` 1.0~100.0 범위, `--threads` ≥ 1 검증, 출력 포맷 허용값 검증, 비숫자/범위 외 거부)
 - ✅ 대화형 모드 검증 클로저 + 디폴트 출력 경로 빌더 (순수 함수로 분리하여 단위 테스트)
 
 향후 추가할 수 있는 테스트:

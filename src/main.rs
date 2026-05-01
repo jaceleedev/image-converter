@@ -2,7 +2,9 @@ use clap::Parser;
 use colored::*;
 use std::path::Path;
 
-use image_converter::{convert_directory, convert_image, interactive::interactive_mode};
+use image_converter::{
+    convert_directory, convert_image, interactive::interactive_mode, OutputFormat,
+};
 
 fn parse_quality(s: &str) -> Result<f32, String> {
     let q: f32 = s
@@ -33,16 +35,33 @@ struct Cli {
     interactive: bool,
 
     /// 변환할 입력 이미지 파일 또는 디렉토리 경로
-    #[arg(short, long, value_name = "PATH", required_unless_present = "interactive")]
+    #[arg(
+        short,
+        long,
+        value_name = "PATH",
+        required_unless_present = "interactive"
+    )]
     input: Option<String>,
 
     /// 출력 파일 또는 디렉토리 경로
-    #[arg(short, long, value_name = "PATH", required_unless_present = "interactive")]
+    #[arg(
+        short,
+        long,
+        value_name = "PATH",
+        required_unless_present = "interactive"
+    )]
     output: Option<String>,
 
     /// 출력 포맷 (png, jpg, jpeg, webp, avif)
-    #[arg(short, long, value_name = "FORMAT", required_unless_present = "interactive")]
-    format: Option<String>,
+    #[arg(
+        short,
+        long,
+        value_name = "FORMAT",
+        value_enum,
+        ignore_case = true,
+        required_unless_present = "interactive"
+    )]
+    format: Option<OutputFormat>,
 
     /// 변환 품질 1-100 (PNG 는 무손실이라 무시됨, 기본값: 90)
     #[arg(short, long, default_value_t = 90.0, value_parser = parse_quality)]
@@ -71,14 +90,14 @@ fn main() {
             convert_directory(
                 &input,
                 &output,
-                &format,
+                format,
                 cli.quality,
                 cli.recursive,
                 cli.threads,
             )
             .map(|_| ())
         } else {
-            convert_image(&input, &output, &format, cli.quality)
+            convert_image(&input, &output, format, cli.quality)
         }
     };
 
@@ -130,5 +149,37 @@ mod tests {
     fn parse_threads_rejects_non_numeric() {
         assert!(parse_threads("abc").is_err());
         assert!(parse_threads("-1").is_err());
+    }
+
+    #[test]
+    fn parse_format_accepts_valid_values_case_insensitive() {
+        let cli = Cli::try_parse_from([
+            "image_converter",
+            "-i",
+            "input.png",
+            "-o",
+            "output.webp",
+            "-f",
+            "WEBP",
+        ])
+        .unwrap();
+        assert_eq!(cli.format, Some(OutputFormat::Webp));
+    }
+
+    #[test]
+    fn parse_format_rejects_invalid_value() {
+        let err = Cli::try_parse_from([
+            "image_converter",
+            "-i",
+            "input.png",
+            "-o",
+            "output.xyz",
+            "-f",
+            "xyz",
+        ])
+        .unwrap_err()
+        .to_string();
+        assert!(err.contains("xyz"));
+        assert!(err.contains("png") && err.contains("webp") && err.contains("avif"));
     }
 }

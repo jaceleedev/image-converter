@@ -21,6 +21,7 @@ src/
 ├── main.rs            # CLI 진입점, 단일/일괄 분기
 ├── lib.rs             # 공개 API re-export (main.rs도 이 lib을 통해 import)
 ├── error.rs           # ConverterError + Result 타입 (thiserror 기반)
+├── format.rs          # OutputFormat enum + CLI/내부 공통 출력 포맷 파싱
 ├── converter.rs       # 단일 변환. encode_to() 가 webp/avif/png/jpg|jpeg 분기를
 │                      # 처리하고, convert_image(UI 포함) / convert_image_silent
 │                      # (조용함) 가 동일 내부를 공유. AVIF 인코딩은 8-bit 고정
@@ -29,7 +30,7 @@ src/
 ├── interactive.rs     # 대화형 모드 (단일/디렉토리 선택 → 출력 포맷 → 옵션 → 실행).
 │                      # PNG 출력 시 quality 단계는 자동 스킵
 ├── utils.rs           # format_file_size 등 헬퍼
-└── tests/             # 단위 + 통합 테스트 (총 41개)
+└── tests/             # 단위 + 통합 테스트 (총 43개)
 ```
 
 세부 책임은 `PROJECT_STRUCTURE.md` 참고.
@@ -69,6 +70,7 @@ brew install nasm dav1d
 ```bash
 # Docker (권장)
 docker compose run --rm dev cargo build
+docker compose run --rm dev cargo fmt
 docker compose run --rm dev cargo test
 docker compose run --rm dev cargo build --release
 

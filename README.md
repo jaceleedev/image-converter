@@ -38,6 +38,9 @@ docker compose build
 # 테스트 실행
 docker compose run --rm dev cargo test
 
+# 포맷팅
+docker compose run --rm dev cargo fmt
+
 # 릴리즈 빌드
 docker compose run --rm dev cargo build --release
 

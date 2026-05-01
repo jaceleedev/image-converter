@@ -6,6 +6,7 @@ use walkdir::WalkDir;
 
 use crate::converter::{convert_image_silent, ConvertStats};
 use crate::error::{ConverterError, Result};
+use crate::format::OutputFormat;
 use crate::utils::format_file_size;
 
 /// 디렉토리 변환 결과 합계
@@ -25,9 +26,7 @@ fn is_supported_image(path: &Path) -> bool {
             .and_then(|e| e.to_str())
             .map(|s| s.to_lowercase())
             .as_deref(),
-        Some(
-            "png" | "jpg" | "jpeg" | "webp" | "avif" | "tiff" | "tif" | "bmp" | "ico"
-        )
+        Some("png" | "jpg" | "jpeg" | "webp" | "avif" | "tiff" | "tif" | "bmp" | "ico")
     )
 }
 
@@ -54,12 +53,12 @@ fn map_output_path(
     input_file: &Path,
     input_dir: &Path,
     output_dir: &Path,
-    target_format: &str,
+    target_format: OutputFormat,
 ) -> PathBuf {
     let relative = input_file
         .strip_prefix(input_dir)
         .unwrap_or(input_file)
-        .with_extension(target_format);
+        .with_extension(target_format.as_str());
     output_dir.join(relative)
 }
 
@@ -70,7 +69,7 @@ fn map_output_path(
 pub fn convert_directory(
     input_dir: &str,
     output_dir: &str,
-    format: &str,
+    format: OutputFormat,
     quality: f32,
     recursive: bool,
     threads: Option<usize>,
@@ -104,7 +103,7 @@ pub fn convert_directory(
         "  {} 출력: {} ({})",
         "📁".bright_green(),
         output_dir.bright_cyan(),
-        format.to_uppercase().bright_magenta()
+        format.display_name().bright_magenta()
     );
     if let Some(n) = threads {
         println!(
@@ -186,7 +185,7 @@ fn process_one(
     file: &Path,
     input_dir: &Path,
     output_dir: &Path,
-    format: &str,
+    format: OutputFormat,
     quality: f32,
     pb: &ProgressBar,
 ) -> Option<ConvertStats> {

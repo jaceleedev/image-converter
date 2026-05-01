@@ -12,6 +12,17 @@
 
 ## 최근 작업 로그
 
+### 2026-05-01 — 출력 포맷 `OutputFormat` enum 타입화
+
+- 신규 `src/format.rs` — `OutputFormat` enum (`png`/`jpg`/`jpeg`/`webp`/`avif`) 추가
+- `clap::ValueEnum` 으로 `--format` 허용값을 CLI 파싱 단계에서 검증하도록 변경 (`ignore_case = true`)
+- `converter.rs` / `batch.rs` / `interactive.rs` 내부 API 가 문자열 대신 `OutputFormat` 을 받도록 전환
+- 기존 invalid format 테스트는 `OutputFormat` 파싱 에러 검증으로 변경
+- `src/main.rs` 에 `--format WEBP` 대소문자 무시 파싱과 `--format xyz` 거부 단위 테스트 2개 추가
+- Docker 개발 이미지에 `rustfmt` 컴포넌트 추가 (`cargo fmt` 사용 가능)
+- `docker compose run --rm dev cargo fmt` 성공
+- `docker compose run --rm dev cargo test` 성공 — lib 35개 + bin 8개 = 총 43개 테스트 통과
+
 ### 2026-05-01 — Docker 개발 환경 추가
 
 - WSL 에서 작업하던 Rust 프로젝트를 macOS / 새 MacBook 으로 옮겨도 같은 개발 환경을 쓰기 위해 Docker 기반 격리 환경 추가
