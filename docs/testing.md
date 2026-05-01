@@ -42,22 +42,22 @@ docker compose run --rm dev cargo test --release
 
 ### 로컬 Rust 로 실행
 
-### 기본 테스트 실행
+#### 기본 테스트 실행
 ```bash
 cargo test
 ```
 
-### 테스트 출력과 함께 실행 (추천)
+#### 테스트 출력과 함께 실행 (추천)
 ```bash
 cargo test -- --nocapture
 ```
 
-### 순차적으로 테스트 실행 (출력이 깔끔하게 나옴)
+#### 순차적으로 테스트 실행 (출력이 깔끔하게 나옴)
 ```bash
 cargo test -- --test-threads=1 --nocapture
 ```
 
-### 특정 테스트만 실행
+#### 특정 테스트만 실행
 ```bash
 # 파일 크기 관련 테스트만 실행
 cargo test format_file_size
@@ -66,7 +66,7 @@ cargo test format_file_size
 cargo test webp -- --nocapture
 ```
 
-### 빠른 테스트 (릴리즈 모드)
+#### 빠른 테스트 (릴리즈 모드)
 ```bash
 cargo test --release
 ```

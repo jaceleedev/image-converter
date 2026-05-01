@@ -13,6 +13,14 @@
 - **품질 설정**: 1-100% 품질 조정 가능 (PNG 는 무손실이라 자동 무시)
 - **아름다운 UI**: 이모티콘과 색상으로 보기 좋은 출력
 
+## 📚 문서
+
+- [에이전트 가이드](AGENTS.md): Codex/Claude Code 등 에이전트 공통 작업 규칙
+- [개발 문서 인덱스](docs/README.md): 개발 문서 목록
+- [프로젝트 구조](docs/architecture.md): 모듈별 책임과 의존성 흐름
+- [테스트 가이드](docs/testing.md): 테스트 실행법과 테스트 목록
+- [작업 메모리](docs/memory.md): 최근 작업 로그와 결정 기록
+
 ## 🎯 지원 포맷 매트릭스
 
 | 포맷       | 입력 | 출력 | 비고                                                                                                |
@@ -83,7 +91,7 @@ RUST_IMAGE=rust:1.94-trixie docker compose build
 
    ```bash
    git clone <repository-url>
-   cd image_converter
+   cd image-converter
    ```
 
 4. 프로젝트 디렉토리에서 빌드합니다:
