@@ -117,7 +117,7 @@ Conventional Commits + 한국어 본문.
 - 변경 내용 1
 - 변경 내용 2
 
-Co-authored-by: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+Co-authored-by: <agent-name> <agent-email>
 ```
 
 **type**: `feat` · `fix` · `refactor` · `chore` · `docs` · `style` · `test` · `perf` · `ci` · `build` · `revert` · `init` · `remove` · `rename` · `hotfix`
@@ -125,7 +125,7 @@ Co-authored-by: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 **규칙**
 - 제목은 type 뒤 한국어. 영어 고유명사/기술용어/심볼은 그대로
 - 본문은 `-` 리스트, 백틱으로 코드/심볼 인용 가능
-- 마지막 줄에 `Co-authored-by:` (소문자 `a`/`b`) 트레일러 — Claude Code 기본 템플릿(`Co-Authored-By` 대문자) 대신 이 형식 우선
+- 마지막 줄에 `Co-authored-by:` (소문자 `a`/`b`) 트레일러 — 함께 작업한 에이전트에 맞는 이름/이메일 사용
 - PR squash merge 시 제목 끝에 `(#N)` 자동 부착
 
 ## 향후 개선 후보
@@ -141,5 +141,5 @@ Co-authored-by: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 
 - `README.md` — 사용자용 사용법, 옵션, 예제 출력
 - `PROJECT_STRUCTURE.md` — 모듈별 책임, 의존성 흐름, 향후 개선 제안
-- `TESTING.md` — 테스트 실행 방법, 테스트 목록 (12개), 매크로 사용법
+- `TESTING.md` — 테스트 실행 방법, 테스트 목록, 매크로 사용법
 - `MEMORY.md` — 작업 컨텍스트, 결정 기록, 진행 중/대기 항목 (세션 간 인계용)

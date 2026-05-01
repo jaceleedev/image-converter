@@ -20,6 +20,28 @@ src/
 
 ## 테스트 실행 방법
 
+### Docker 로 실행 (추천)
+```bash
+docker compose build
+docker compose run --rm dev cargo test
+```
+
+테스트 출력까지 보고 싶으면 다음처럼 실행합니다.
+
+```bash
+docker compose run --rm dev cargo test -- --nocapture
+```
+
+릴리즈 모드 테스트도 컨테이너 안에서 실행할 수 있습니다.
+
+```bash
+docker compose run --rm dev cargo test --release
+```
+
+컨테이너의 `target` 과 Cargo 캐시는 Docker named volume 에 저장됩니다. 캐시까지 초기화하려면 `docker compose down -v` 를 실행합니다.
+
+### 로컬 Rust 로 실행
+
 ### 기본 테스트 실행
 ```bash
 cargo test

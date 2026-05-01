@@ -5,6 +5,9 @@
 ```
 image_converter/
 ├── .gitignore              # Git 무시 파일 설정
+├── .dockerignore           # Docker 빌드 컨텍스트 제외 파일
+├── Dockerfile              # Rust + nasm + dav1d 개발 컨테이너 이미지
+├── docker-compose.yml      # 개발/테스트용 컨테이너 실행 설정
 ├── Cargo.toml              # Rust 프로젝트 설정 및 의존성
 ├── README.md               # 프로젝트 사용 가이드
 ├── TESTING.md              # 테스트 실행 가이드
@@ -87,6 +90,12 @@ image_converter/
 - 단위 테스트와 통합 테스트 분리
 - 테스트 유틸리티 및 매크로
 - 깔끔한 테스트 출력
+
+### Docker 개발 환경
+
+- `Dockerfile`: 공식 Rust Debian 이미지를 기반으로 `nasm`, `libdav1d-dev`, `pkg-config` 를 설치
+- `docker-compose.yml`: 현재 작업 디렉토리를 `/workspace` 로 마운트하고 Cargo registry/git/target 을 Docker named volume 으로 분리
+- 기본 이미지는 `rust:1-trixie` (`dav1d >= 1.3.0` 필요), 필요 시 `RUST_IMAGE=rust:1.94-trixie docker compose build` 처럼 고정 가능
 
 ## 장점
 

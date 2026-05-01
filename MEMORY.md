@@ -12,6 +12,21 @@
 
 ## 최근 작업 로그
 
+### 2026-05-01 — Docker 개발 환경 추가
+
+- WSL 에서 작업하던 Rust 프로젝트를 macOS / 새 MacBook 으로 옮겨도 같은 개발 환경을 쓰기 위해 Docker 기반 격리 환경 추가
+- 신규 `Dockerfile` — `rust:1-trixie` 기반, AVIF 빌드/디코딩에 필요한 `nasm`, `libdav1d-dev`, `pkg-config` 설치. `CARGO_TARGET_DIR=/workspace/target`, `RUST_BACKTRACE=1` 설정
+- 신규 `docker-compose.yml` — 현재 repo 를 `/workspace` 로 bind mount, Cargo registry/git/target 은 Docker named volume 으로 분리해서 호스트에 Rust 빌드 산출물이 남지 않게 구성
+- 신규 `.dockerignore` — `target`, `.git`, `.DS_Store` 를 Docker build context 에서 제외
+- README/TESTING/PROJECT_STRUCTURE/CLAUDE 문서에 Docker 사용법 추가
+- 기본 이미지는 `rust:1-trixie`; `dav1d-sys` 가 `dav1d >= 1.3.0` 을 요구해서 Debian bookworm 의 `libdav1d-dev 1.0.0` 으로는 빌드 실패
+- 완전 고정이 필요하면 `RUST_IMAGE=rust:1.94-trixie docker compose build` 형태로 override 가능
+- 검증 완료:
+  - `docker compose config` 성공
+  - `docker compose build` 성공
+  - `docker compose run --rm dev cargo test` 성공 — lib 35개 + bin 6개 = 총 41개 테스트 통과
+  - 컨테이너 버전: `cargo 1.95.0`, `rustc 1.95.0`, `dav1d 1.5.1`
+
 ### 2026-04-30 — `refactor: 대화형 모드 검증 분리 + 단위 테스트 + threads 질문 추가` (PR 진행 중)
 
 - `src/interactive.rs` — `validate_with` 인라인 클로저와 디폴트 출력 경로 인라인 코드를 5개 순수 함수로 분리:
