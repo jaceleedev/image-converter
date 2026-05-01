@@ -136,14 +136,22 @@ pub fn convert_image(
             width,
             height,
         },
+        format,
         quality,
     );
     Ok(())
 }
 
-fn print_single_summary(input_path: &str, output_path: &str, stats: &ConvertStats, quality: f32) {
+fn print_single_summary(
+    input_path: &str,
+    output_path: &str,
+    stats: &ConvertStats,
+    format: OutputFormat,
+    quality: f32,
+) {
     let reduction =
         ((stats.input_size as f64 - stats.output_size as f64) / stats.input_size as f64) * 100.0;
+    let quality_label = crate::utils::format_quality_label(format, quality);
 
     println!("\n{} 변환 결과:", "📊".bright_blue());
     println!(
@@ -154,10 +162,10 @@ fn print_single_summary(input_path: &str, output_path: &str, stats: &ConvertStat
         stats.height
     );
     println!(
-        "  {} 변환: {} (품질: {}%)",
+        "  {} 변환: {} ({})",
         "💾".bright_green(),
         crate::utils::format_file_size(stats.output_size).bright_green(),
-        quality as u32
+        quality_label
     );
 
     let emoji = pick_reduction_emoji(reduction);

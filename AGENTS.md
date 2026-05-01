@@ -28,8 +28,7 @@ Docker 사용을 기본으로 합니다. 로컬 OS 에 Rust, `nasm`, `dav1d` 를
 
 ```bash
 docker compose build
-docker compose run --rm dev cargo fmt --check
-docker compose run --rm dev cargo test
+./scripts/check.sh
 docker compose run --rm dev cargo build --release
 docker compose run --rm dev cargo run --release -- -I
 ```
@@ -50,7 +49,7 @@ docker compose run --rm dev cargo run --release -- -I
 
 - 변경 전 관련 모듈과 테스트를 먼저 확인
 - 기능 변경은 가능한 한 작은 단위로 분리
-- Docker 환경에서 `cargo fmt --check` 와 `cargo test` 로 검증
+- Docker 환경에서 `./scripts/check.sh` 로 포맷팅, Clippy, 테스트를 함께 검증
 - 문서 구조나 개발 흐름을 바꾸면 `README.md`, `docs/architecture.md`, `docs/testing.md`, `docs/memory.md` 중 필요한 문서를 함께 갱신
 - `docs/memory.md` 에는 시간에 따라 변하는 작업 로그와 결정 기록만 추가
 

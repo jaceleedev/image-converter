@@ -12,6 +12,31 @@
 
 ## 최근 작업 로그
 
+### 2026-05-01 — 버전 단일화 + PNG 요약 라벨 개선
+
+- `Cargo.toml` 패키지 버전을 `2.4.0` 으로 올리고, `src/main.rs` 의 clap 버전은 하드코딩 대신 Cargo 패키지 버전을 사용하도록 변경
+  - `docker compose run --rm dev cargo run -- --version` 출력: `image_converter 2.4.0`
+- 출력 요약의 품질 표시를 `src/utils.rs` 의 `format_quality_label(format, quality)` 로 공통화
+  - WebP/JPEG/AVIF: 기존처럼 `품질: N%`
+  - PNG: 품질 값 대신 `무손실`
+- 단일 변환(`converter.rs`) 과 일괄 변환(`batch.rs`) 요약이 같은 라벨 규칙을 사용하도록 변경
+- `format_quality_label` 단위 테스트 2개 추가 — 손실 포맷 품질 라벨 + PNG 무손실 라벨
+- README / docs/testing.md / docs/architecture.md 갱신
+- `./scripts/check.sh` 성공 — fmt 통과, Clippy 경고 없음, lib 37개 + bin 8개 = 총 45개 테스트 통과
+
+### 2026-05-01 — 로컬 품질 검사 스크립트 추가
+
+- GitHub Actions 같은 원격 CI 는 아직 도입하지 않고, 로컬에서 한 번에 검사하는 스크립트 방식으로 결정
+- 신규 `scripts/check.sh` 추가
+  - 기본: Docker 개발 컨테이너에서 `cargo fmt --check` → `cargo clippy --all-targets --all-features -- -D warnings` → `cargo test` 순서로 실행
+  - `--local`: 호스트에 설치된 Cargo 로 같은 검사 실행
+  - `--release`: 테스트만 release 모드로 실행
+- `Dockerfile` 에 `clippy` 컴포넌트 설치 추가 (`rustup component add rustfmt clippy`)
+- README / docs/testing.md / docs/architecture.md / AGENTS.md 에 로컬 검사 스크립트 사용법 반영
+- 검증 완료:
+  - `docker compose build` 성공
+  - `./scripts/check.sh` 성공 — fmt 통과, Clippy 경고 없음, lib 35개 + bin 8개 = 총 43개 테스트 통과
+
 ### 2026-05-01 — 문서 구조 정리
 
 - 루트 문서가 많아진 문제를 줄이기 위해 상세 개발 문서를 `docs/` 아래로 이동

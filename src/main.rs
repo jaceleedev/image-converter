@@ -28,7 +28,7 @@ fn parse_threads(s: &str) -> Result<usize, String> {
 
 /// PNG/JPG/JPEG/WebP/AVIF/TIFF/BMP/ICO 이미지를 PNG/JPG/WebP/AVIF 로 변환합니다 (단일 파일 + 디렉토리 일괄)
 #[derive(Parser, Debug)]
-#[command(name = "image_converter", version = "2.4", about, long_about = None)]
+#[command(name = "image_converter", version, about, long_about = None)]
 struct Cli {
     /// 대화형 모드로 실행
     #[arg(short = 'I', long)]
