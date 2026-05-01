@@ -7,6 +7,7 @@ use std::io::Cursor;
 use webp::Encoder as WebpEncoder;
 
 use crate::error::{ConverterError, Result};
+use crate::format::OutputFormat;
 
 /// 단일 이미지 변환 결과 통계
 #[derive(Debug)]
@@ -18,15 +19,15 @@ pub struct ConvertStats {
 }
 
 /// 메모리에 로드된 이미지를 지정한 포맷으로 인코딩
-fn encode_to(img: &DynamicImage, format: &str, quality: f32) -> Result<Vec<u8>> {
+fn encode_to(img: &DynamicImage, format: OutputFormat, quality: f32) -> Result<Vec<u8>> {
     match format {
-        "webp" => {
-            let encoder = WebpEncoder::from_image(img)
-                .map_err(|e| ConverterError::Webp(e.to_string()))?;
+        OutputFormat::Webp => {
+            let encoder =
+                WebpEncoder::from_image(img).map_err(|e| ConverterError::Webp(e.to_string()))?;
             let data = encoder.encode(quality);
             Ok(data.to_vec())
         }
-        "avif" => {
+        OutputFormat::Avif => {
             let (width, height) = img.dimensions();
             let rgba_img = img.to_rgba8();
             let pixels: Vec<RGBA8> = rgba_img
@@ -42,13 +43,13 @@ fn encode_to(img: &DynamicImage, format: &str, quality: f32) -> Result<Vec<u8>> 
             let res = encoder.encode_rgba(Img::new(&pixels, width as usize, height as usize))?;
             Ok(res.avif_file)
         }
-        "png" => {
+        OutputFormat::Png => {
             // PNG 는 무손실 — quality 는 의미 없음 (조용히 무시)
             let mut buf: Vec<u8> = Vec::new();
             img.write_to(&mut Cursor::new(&mut buf), ImageOutputFormat::Png)?;
             Ok(buf)
         }
-        "jpg" | "jpeg" => {
+        OutputFormat::Jpg | OutputFormat::Jpeg => {
             // JPEG 는 알파 채널을 가질 수 없으므로 RGB 로 다운샘플 후 인코딩
             let q = quality.clamp(1.0, 100.0).round() as u8;
             let rgb = DynamicImage::ImageRgb8(img.to_rgb8());
@@ -56,7 +57,6 @@ fn encode_to(img: &DynamicImage, format: &str, quality: f32) -> Result<Vec<u8>> 
             rgb.write_to(&mut Cursor::new(&mut buf), ImageOutputFormat::Jpeg(q))?;
             Ok(buf)
         }
-        _ => Err(ConverterError::UnsupportedFormat(format.to_string())),
     }
 }
 
@@ -64,7 +64,7 @@ fn encode_to(img: &DynamicImage, format: &str, quality: f32) -> Result<Vec<u8>> 
 pub fn convert_image_silent(
     input_path: &str,
     output_path: &str,
-    format: &str,
+    format: OutputFormat,
     quality: f32,
 ) -> Result<ConvertStats> {
     let input_size = fs::metadata(input_path)?.len();
@@ -85,7 +85,7 @@ pub fn convert_image_silent(
 pub fn convert_image(
     input_path: &str,
     output_path: &str,
-    format: &str,
+    format: OutputFormat,
     quality: f32,
 ) -> Result<()> {
     println!("\n{} 이미지 변환을 시작합니다...", "🚀".bright_blue());
@@ -110,8 +110,8 @@ pub fn convert_image(
     pb.set_position(40);
     pb.set_message(format!(
         "{} 인코딩 중... {}",
-        format.to_uppercase(),
-        if format == "avif" {
+        format.display_name(),
+        if format.is_avif() {
             "(시간이 걸릴 수 있습니다)"
         } else {
             ""

@@ -12,6 +12,8 @@ RUN apt-get update \
         pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
+RUN rustup component add rustfmt
+
 WORKDIR /workspace
 
 ENV CARGO_TARGET_DIR=/workspace/target

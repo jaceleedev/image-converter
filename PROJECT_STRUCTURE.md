@@ -16,6 +16,7 @@ image_converter/
     ├── main.rs             # 진입점 - CLI 인자 처리, 단일/일괄 분기
     ├── lib.rs              # 라이브러리 루트 - 공개 API re-export
     ├── error.rs            # ConverterError + Result 타입 (thiserror 기반)
+    ├── format.rs           # OutputFormat enum + 출력 포맷 파싱/표시 헬퍼
     ├── converter.rs        # 단일 파일 변환 + 인코딩 헬퍼
     ├── batch.rs            # 디렉토리 일괄 변환 (재귀 옵션, 스레드 수 명시 가능)
     ├── interactive.rs      # 대화형 모드 (단일/디렉토리)
@@ -43,6 +44,13 @@ image_converter/
 - WebP 인코더의 `&str` 에러는 별도 `Webp(String)` variant 로 매핑 (소유권 확보)
 - 사용자 입력성 에러는 `UnsupportedFormat`, `InvalidPath` 등 컨텍스트가 담긴 variant
 - Display 메시지는 모두 한국어 (`"입출력 오류: ..."`, `"지원하지 않는 포맷입니다: xyz"` 등)
+
+### `format.rs` (출력 포맷 타입)
+
+- `OutputFormat` enum (`png`/`jpg`/`jpeg`/`webp`/`avif`)
+- `clap::ValueEnum` 기반 CLI 허용값 검증
+- `FromStr` 기반 내부/테스트용 파싱
+- 확장자 문자열(`as_str`) 과 표시명(`display_name`) 헬퍼 제공
 
 ### `converter.rs` (단일 변환 비즈니스 로직)
 

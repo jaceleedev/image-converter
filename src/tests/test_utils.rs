@@ -1,15 +1,19 @@
 use image::{ImageBuffer, Rgb};
 
 /// 테스트용 체커보드 패턴 이미지를 생성하는 헬퍼 함수
-pub fn create_test_image(path: &str, width: u32, height: u32) -> Result<(), Box<dyn std::error::Error>> {
+pub fn create_test_image(
+    path: &str,
+    width: u32,
+    height: u32,
+) -> Result<(), Box<dyn std::error::Error>> {
     let img = ImageBuffer::from_fn(width, height, |x, y| {
         if (x + y) % 2 == 0 {
-            Rgb([255u8, 255u8, 255u8])  // 흰색
+            Rgb([255u8, 255u8, 255u8]) // 흰색
         } else {
-            Rgb([0u8, 0u8, 0u8])         // 검은색
+            Rgb([0u8, 0u8, 0u8]) // 검은색
         }
     });
-    
+
     img.save(path)?;
     Ok(())
 }
