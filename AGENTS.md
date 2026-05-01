@@ -15,6 +15,7 @@
 
 - `README.md`: 사용자용 설치, 사용법, 옵션
 - `docs/README.md`: 개발 문서 인덱스
+- `docs/release-notes.md`: 버전별 주요 변경 사항과 지원 범위
 - `docs/architecture.md`: 모듈 구조와 의존성 흐름
 - `docs/testing.md`: 테스트 실행법과 테스트 목록
 - `docs/memory.md`: 최근 작업 로그, 결정 기록, 진행/대기 항목

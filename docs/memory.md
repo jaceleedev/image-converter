@@ -12,6 +12,14 @@
 
 ## 최근 작업 로그
 
+### 2026-05-01 — 2.5.0 릴리즈 준비
+
+- `Cargo.toml` 패키지 버전을 `2.5.0` 으로 올림
+- `docs/release-notes.md` 추가
+  - 대화형 기본 실행, 출력 확장자 검증, 기본 출력 경로, 덮어쓰기 방지, 리사이즈, JPEG 배경색을 2.5.0 주요 변경으로 정리
+  - PDF/HEIC 입력은 이번 릴리즈 범위에서 제외하고 별도 큰 작업 후보로 명시
+- README / AGENTS.md / docs/README.md / docs/architecture.md 에 릴리즈 노트 링크와 문서 구조 반영
+
 ### 2026-05-01 — JPEG 배경색 옵션 추가
 
 - 대화형 모드에서 JPEG 출력 선택 시 "투명 영역 배경색" 질문 추가
@@ -332,6 +340,7 @@
 - **PNG quality 는 조용히 무시** — `encode_to("png", ...)` 가 quality 인자를 받지만 사용하지 않음. CLI 와 대화형 모드에서 사용자에게 "무손실이라 적용 안 됨" 한 줄 안내 + `-q` doc 주석에도 명시. 에러로 거부하지 않는 이유는 배치 모드에서 한 quality 값을 여러 출력 포맷에 공통 적용하는 흐름을 깨지 않기 위함.
 - **JPEG 출력 시 명시적 RGB 변환 사용** — `image` 의 `write_to(..., ImageOutputFormat::Jpeg(q))` 는 RGBA 입력도 받지만 동작이 버전에 따라 다를 수 있음. 기본 API 에서는 기존처럼 `DynamicImage::ImageRgb8(img.to_rgb8())` 로 변환 후 인코딩하고, `ConversionOptions.jpeg_background` 가 있으면 인코딩 전에 알파 채널을 지정 배경색 위에 합성한다.
 - **대화형 JPEG 배경 기본값은 흰색** — 투명 PNG/WebP 아이콘을 JPEG 로 만들 때 웹 페이지의 기본 배경과 가장 자주 맞는 값이라 `#FFFFFF` 를 기본 선택지로 둔다. 검정과 직접 입력(`#RRGGBB`)도 제공하되, CLI 플래그는 아직 늘리지 않고 대화형 우선 흐름에서만 질문한다.
+- **PDF 입력은 이번 릴리즈에서 제외** — PDF는 이미지처럼 취급하고 싶은 사용 사례가 있지만, 실제로는 페이지가 있는 문서 컨테이너라 페이지 선택, DPI, 다중 페이지 출력 이름 규칙이 함께 필요하다. 현재 릴리즈는 PNG/JPEG/WebP/AVIF/TIFF/BMP/ICO 같은 실제 이미지 파일 변환 완성도에 집중하고, PDF는 별도 기능으로 설계한다.
 - **`jpg` 와 `jpeg` 를 같은 분기로** — `match` 의 or-pattern (`"jpg" | "jpeg"`) 으로 한 분기에서 처리. 사용자 친화적이면서 코드 중복 없음. 출력 확장자도 `.jpg` 와 `.jpeg` 안에서는 사용자가 명시한 그대로 사용 (둘 다 동일 JPEG 컨테이너).
 - **WebP 픽스처는 webp 크레이트로 생성** — `image::ImageBuffer::save("path.webp")` 는 `image` 의 `webp-encoder` feature (`libwebp` 의존) 가 필요해서 사용 못 함. 테스트에서는 PNG 시드를 만든 후 `convert_image_silent(seed.png, fixture.webp, "webp", ...)` 로 우회.
 - **rayon `par_iter().map().collect()` + 직렬 합산** — Atomic 카운터나 `fold/reduce` 보다 단순. `BatchSummary` 구조체 변경 없이 결과만 병렬 수집 후 한 번에 누적.
@@ -375,7 +384,9 @@
 - [x] **대화형 모드 문구/선택지 polish** — 완료. 포맷 선택지에 용도 힌트를 붙이고, 품질 프리셋을 웹 권장(90%) 기본값 중심으로 정리. 61 테스트 통과.
 - [x] **대화형 리사이즈 옵션** — 완료. 최대 가로 크기 기반 비율 유지 축소를 단일/일괄 변환에 적용. 원본보다 작을 때만 축소하고 확대하지 않음. 66 테스트 통과.
 - [x] **JPEG 배경색 옵션** — 완료. 대화형 JPEG 출력에서 투명 영역 배경색을 선택하고, 인코딩 전 알파 합성을 적용. 72 테스트 통과.
+- [x] **2.5.0 릴리즈 준비** — 완료. 버전 bump + 릴리즈 노트 추가.
 - [ ] **`image` 0.25 업그레이드** — 10-bit AVIF 디코딩 지원. breaking change 가 있어 별도 작업. 업그레이드 후 ravif 의 8-bit 강제도 풀어줄 수 있음
+- [ ] **PDF 입력** — 첫 페이지만 렌더링할지, 페이지 범위를 여러 파일로 내보낼지, 기본 DPI를 어떻게 둘지 먼저 정해야 하는 별도 기능.
 - [ ] **HEIC 입력** — `libheif` 시스템 의존성 + `libheif-rs` 등 외부 크레이트. 부담 큼.
 - [ ] **대화형 모드 통합 테스트** — `dialoguer::Select` 가 PTY 필요해서 `rexpect` 등 도입 부담. 우선순위 낮음 (위 리팩토링으로 검증/경로 로직은 단위 테스트로 커버됨).
 

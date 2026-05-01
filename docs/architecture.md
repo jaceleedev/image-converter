@@ -17,6 +17,7 @@ image_converter/
 │   ├── README.md           # 개발 문서 인덱스
 │   ├── architecture.md     # 이 문서
 │   ├── testing.md          # 테스트 실행 가이드
+│   ├── release-notes.md    # 버전별 주요 변경 사항
 │   └── memory.md           # 작업 로그와 결정 기록
 └── src/
     ├── main.rs             # 진입점 - CLI 인자 처리, 단일/일괄 분기
@@ -171,5 +172,6 @@ main.rs
 
 - `README.md`: 사용자용 설치, 사용법, 옵션
 - `AGENTS.md`: 에이전트 공통 작업 규칙
+- `docs/release-notes.md`: 버전별 주요 변경 사항과 지원 범위
 - `docs/testing.md`: 테스트 실행 방법, 테스트 목록, 매크로 사용법
 - `docs/memory.md`: 작업 컨텍스트, 결정 기록, 진행 중/대기 항목

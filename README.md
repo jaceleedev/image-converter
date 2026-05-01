@@ -21,6 +21,7 @@
 
 - [에이전트 가이드](AGENTS.md): Codex/Claude Code 등 에이전트 공통 작업 규칙
 - [개발 문서 인덱스](docs/README.md): 개발 문서 목록
+- [릴리즈 노트](docs/release-notes.md): 버전별 주요 변경 사항
 - [프로젝트 구조](docs/architecture.md): 모듈별 책임과 의존성 흐름
 - [테스트 가이드](docs/testing.md): 테스트 실행법과 테스트 목록
 - [작업 메모리](docs/memory.md): 최근 작업 로그와 결정 기록
