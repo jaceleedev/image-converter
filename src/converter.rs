@@ -4,6 +4,7 @@ use indicatif::{ProgressBar, ProgressStyle};
 use ravif::{BitDepth, Encoder as AvifEncoder, Img, RGBA8};
 use std::fs;
 use std::io::{Cursor, ErrorKind, Write};
+use std::path::Path;
 use webp::Encoder as WebpEncoder;
 
 use crate::error::{ConverterError, Result};
@@ -67,6 +68,39 @@ fn ensure_output_available(output_path: &str) -> Result<()> {
     Ok(())
 }
 
+fn output_extension_mismatch(
+    output_path: &str,
+    format: OutputFormat,
+    actual: String,
+) -> ConverterError {
+    ConverterError::OutputExtensionMismatch {
+        output_path: output_path.to_string(),
+        actual,
+        expected: format.allowed_extensions_label().to_string(),
+    }
+}
+
+/// 출력 파일 확장자가 선택한 출력 포맷과 일치하는지 확인
+pub fn validate_output_extension(output_path: &str, format: OutputFormat) -> Result<()> {
+    let actual = Path::new(output_path)
+        .extension()
+        .and_then(|extension| extension.to_str());
+
+    match actual {
+        Some(extension) if format.matches_extension(extension) => Ok(()),
+        Some(extension) => Err(output_extension_mismatch(
+            output_path,
+            format,
+            format!(".{extension}"),
+        )),
+        None => Err(output_extension_mismatch(
+            output_path,
+            format,
+            "없음".to_string(),
+        )),
+    }
+}
+
 fn write_output_file(output_path: &str, data: &[u8]) -> Result<()> {
     let mut file = fs::OpenOptions::new()
         .write(true)
@@ -90,6 +124,7 @@ pub fn convert_image_silent(
     format: OutputFormat,
     quality: f32,
 ) -> Result<ConvertStats> {
+    validate_output_extension(output_path, format)?;
     let input_size = fs::metadata(input_path)?.len();
     ensure_output_available(output_path)?;
     let img = image::open(input_path)?;
@@ -112,6 +147,8 @@ pub fn convert_image(
     format: OutputFormat,
     quality: f32,
 ) -> Result<()> {
+    validate_output_extension(output_path, format)?;
+
     println!("\n{} 이미지 변환을 시작합니다...", "🚀".bright_blue());
 
     let pb = ProgressBar::new(100);

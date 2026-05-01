@@ -3,7 +3,7 @@ use dialoguer::{theme::ColorfulTheme, Confirm, Input, Select};
 use std::path::{Path, PathBuf};
 
 use crate::batch::convert_directory;
-use crate::converter::convert_image;
+use crate::converter::{convert_image, validate_output_extension};
 use crate::format::OutputFormat;
 
 fn validate_input_path(input: &str, is_batch: bool) -> Result<(), &'static str> {
@@ -32,6 +32,10 @@ fn validate_threads_input(input: &str) -> Result<(), &'static str> {
         Ok(n) if n >= 1 => Ok(()),
         _ => Err("1 이상의 정수를 입력하세요"),
     }
+}
+
+fn validate_output_file_path(input: &str, format: OutputFormat) -> Result<(), String> {
+    validate_output_extension(input, format).map_err(|e| e.to_string())
 }
 
 fn default_output_path_for_file(input: &Path, format: OutputFormat) -> String {
@@ -181,6 +185,7 @@ pub fn interactive_mode() -> crate::error::Result<()> {
         let output_path: String = Input::with_theme(&ColorfulTheme::default())
             .with_prompt("출력 파일 경로를 입력하세요")
             .default(default_output)
+            .validate_with(|input: &String| validate_output_file_path(input, format))
             .interact_text()?;
 
         convert_image(&input_path, &output_path, format, quality)?;
@@ -254,6 +259,28 @@ mod tests {
         assert!(validate_threads_input("-1").is_err());
         assert!(validate_threads_input("abc").is_err());
         assert!(validate_threads_input("").is_err());
+    }
+
+    #[test]
+    fn validate_output_file_path_accepts_matching_extension() {
+        assert!(validate_output_file_path("photo.webp", OutputFormat::Webp).is_ok());
+        assert!(validate_output_file_path("photo.AVIF", OutputFormat::Avif).is_ok());
+        assert!(validate_output_file_path("photo.png", OutputFormat::Png).is_ok());
+    }
+
+    #[test]
+    fn validate_output_file_path_accepts_jpg_jpeg_aliases() {
+        assert!(validate_output_file_path("photo.jpg", OutputFormat::Jpeg).is_ok());
+        assert!(validate_output_file_path("photo.jpeg", OutputFormat::Jpg).is_ok());
+    }
+
+    #[test]
+    fn validate_output_file_path_rejects_mismatch_or_missing_extension() {
+        let mismatch = validate_output_file_path("photo.jpg", OutputFormat::Webp).unwrap_err();
+        assert!(mismatch.contains("허용: .webp"));
+
+        let missing = validate_output_file_path("photo", OutputFormat::Png).unwrap_err();
+        assert!(missing.contains("현재: 없음"));
     }
 
     #[test]

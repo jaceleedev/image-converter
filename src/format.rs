@@ -35,6 +35,30 @@ impl OutputFormat {
         }
     }
 
+    pub fn allowed_extensions(self) -> &'static [&'static str] {
+        match self {
+            Self::Png => &["png"],
+            Self::Jpg | Self::Jpeg => &["jpg", "jpeg"],
+            Self::Webp => &["webp"],
+            Self::Avif => &["avif"],
+        }
+    }
+
+    pub fn allowed_extensions_label(self) -> &'static str {
+        match self {
+            Self::Png => ".png",
+            Self::Jpg | Self::Jpeg => ".jpg 또는 .jpeg",
+            Self::Webp => ".webp",
+            Self::Avif => ".avif",
+        }
+    }
+
+    pub fn matches_extension(self, extension: &str) -> bool {
+        self.allowed_extensions()
+            .iter()
+            .any(|allowed| extension.eq_ignore_ascii_case(allowed))
+    }
+
     pub fn is_png(self) -> bool {
         matches!(self, Self::Png)
     }

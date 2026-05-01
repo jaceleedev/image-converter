@@ -12,6 +12,24 @@
 
 ## 최근 작업 로그
 
+### 2026-05-01 — 출력 확장자 불일치 방지
+
+- `OutputFormat` 에 포맷별 허용 확장자 헬퍼 추가
+  - PNG: `.png`
+  - WebP: `.webp`
+  - AVIF: `.avif`
+  - JPEG/JPG: `.jpg`, `.jpeg` 모두 허용
+- 단일 변환(`convert_image`, `convert_image_silent`) 시작 전에 출력 경로 확장자를 검증하도록 변경
+  - 선택 포맷과 출력 확장자가 다르면 `ConverterError::OutputExtensionMismatch` 반환
+  - 포맷 추론은 하지 않고, 사용자가 선택한 `OutputFormat` 을 계속 단일 기준으로 유지
+- 대화형 단일 파일 모드의 출력 경로 입력에 같은 검증을 붙여 확장자 불일치 시 재입력 유도
+- 회귀/단위 테스트 5개 추가
+  - `test_single_conversion_rejects_mismatched_output_extension`
+  - `test_output_format_extension_matching`
+  - `validate_output_file_path_*` 3개
+- README / docs/architecture.md / docs/testing.md 갱신
+- `./scripts/check.sh` 성공 — fmt 통과, Clippy 경고 없음, lib 44개 + bin 12개 = 총 56개 테스트 통과
+
 ### 2026-05-01 — 대화형 우선 문서 정리
 
 - 비대화형 CLI 는 제거하지 않고 자동화/반복 작업용 보조 기능으로 유지하기로 결정
@@ -243,13 +261,13 @@
 - **`--threads` 는 local thread pool 패턴 (전역 풀 변경 X)** — `rayon::ThreadPoolBuilder::build_global()` 은 프로세스당 한 번만 호출 가능해서 라이브러리 코드에서 사용하면 사용자 코드와 충돌 가능. 대신 `build()?` 로 local pool 을 만들고 `pool.install(|| par_iter)` 로 scope 안에서만 적용. `convert_directory` 의 시그니처에 `threads: Option<usize>` 를 받아 명시적이면 local pool, `None` 이면 전역 풀 그대로.
 - **`Option<usize>` vs `usize` (default 0)** — `clap` 으로 받을 때 `Option<usize>` 가 "사용자가 명시했는지" 와 "default 사용" 을 명확히 구분해줌. `0 = default` 컨벤션은 마술적이라 회피.
 - **CLI 플래그가 `RAYON_NUM_THREADS` 환경변수보다 우선** — `-t N` 으로 명시한 경우 local pool 을 만들어 그 안에서 실행하므로 환경변수가 무시됨. 직관적이고 사용자가 한 번에 통제 가능.
-- **대화형 모드는 스레드 수 질문 안 함** — 단계 늘리기보다 default(=모든 코어) 가 일반 사용자에게 합리적. CLI 사용자만 명시적 통제. 추가 질문은 향후 후보.
+- **단일 변환 출력 확장자는 선택 포맷과 일치해야 함** — `-f webp -o photo.jpg` 처럼 실제 인코딩 결과와 파일명이 어긋나는 실수를 막기 위해 인코딩 전 차단. 포맷 추론은 하지 않고 `OutputFormat` 을 단일 기준으로 유지한다. JPEG 는 사용자 습관을 고려해 `.jpg` 와 `.jpeg` 를 모두 허용.
 - **AVIF 인코딩을 8-bit 로 강제 (`with_bit_depth(BitDepth::Eight)`)** — `ravif` default 가 10-bit (Auto = Ten) 인데 `image` 0.24 AVIF 디코더는 8-bit 만 지원. 강제 안 하면 우리가 만든 AVIF 를 우리가 디코딩 못 하는 라운드트립 모순 발생. 일반 사진 변환 용도에서는 8-bit 로도 충분하고 호환성(타 뷰어/디코더) 도 더 좋음. 단점은 HDR / 부드러운 그라디언트 케이스에서 약간 손해 — `image` 0.25 업그레이드로 10-bit 디코딩 지원되면 default 풀어줄 후보.
 - **외부 10-bit AVIF 입력은 명시적으로 미지원** — `image` 0.24 의 디코더 한계. 사용자가 다른 도구로 만든 10-bit AVIF 를 입력으로 쓰면 `Only 8 bit depth is supported but was 10` 에러. README 매트릭스 표 비고에 한 줄 명시. `image` 0.25 업그레이드를 향후 후보로 정리.
 - **A안 채택 (1단계에서 AVIF 입력 제외)** — `image` 크레이트의 `avif-decoder` feature 는 `dav1d` 시스템 라이브러리 (`libdav1d-dev` apt / `dav1d` brew) 를 요구. 1단계는 시스템 의존성 추가 없는 작업으로 분리하고, B안 (AVIF 입력) 은 별도 PR 로 진행해 의존성 변경의 의도를 명확히 함.
 - **PNG quality 는 조용히 무시** — `encode_to("png", ...)` 가 quality 인자를 받지만 사용하지 않음. CLI 와 대화형 모드에서 사용자에게 "무손실이라 적용 안 됨" 한 줄 안내 + `-q` doc 주석에도 명시. 에러로 거부하지 않는 이유는 배치 모드에서 한 quality 값을 여러 출력 포맷에 공통 적용하는 흐름을 깨지 않기 위함.
 - **JPEG 출력 시 `to_rgb8()` 로 명시적 RGB 다운샘플** — `image` 의 `write_to(..., ImageOutputFormat::Jpeg(q))` 는 RGBA 입력도 받지만 동작이 버전에 따라 다를 수 있음. 명시적으로 `DynamicImage::ImageRgb8(img.to_rgb8())` 로 변환 후 인코딩하여 알파 채널 처리를 확정적으로 만듦. 알파 픽셀은 검정 배경 위에 합성된 형태로 처리됨 (image 크레이트 기본 동작).
-- **`jpg` 와 `jpeg` 를 같은 분기로** — `match` 의 or-pattern (`"jpg" | "jpeg"`) 으로 한 분기에서 처리. 사용자 친화적이면서 코드 중복 없음. 출력 확장자도 사용자가 명시한 그대로 사용 (둘 다 동일 JPEG 컨테이너).
+- **`jpg` 와 `jpeg` 를 같은 분기로** — `match` 의 or-pattern (`"jpg" | "jpeg"`) 으로 한 분기에서 처리. 사용자 친화적이면서 코드 중복 없음. 출력 확장자도 `.jpg` 와 `.jpeg` 안에서는 사용자가 명시한 그대로 사용 (둘 다 동일 JPEG 컨테이너).
 - **WebP 픽스처는 webp 크레이트로 생성** — `image::ImageBuffer::save("path.webp")` 는 `image` 의 `webp-encoder` feature (`libwebp` 의존) 가 필요해서 사용 못 함. 테스트에서는 PNG 시드를 만든 후 `convert_image_silent(seed.png, fixture.webp, "webp", ...)` 로 우회.
 - **rayon `par_iter().map().collect()` + 직렬 합산** — Atomic 카운터나 `fold/reduce` 보다 단순. `BatchSummary` 구조체 변경 없이 결과만 병렬 수집 후 한 번에 누적.
 - **rayon 도입 이후 path 인코딩 실패의 의미 변경** — 직렬 시절엔 `?` 로 outer 함수까지 propagation 되어 한 파일이 실패하면 전체 일괄 변환이 중단됐는데, 병렬화하면서 "그 파일만 실패" 패턴으로 변경. 일괄 변환의 자연스러운 의미와 더 잘 맞음.
@@ -284,6 +302,7 @@
 - [x] **대화형 모드 리팩토링 + 단위 테스트 + `--threads` 질문 추가** — 완료. 검증/디폴트 빌더 5개 함수 분리, 단위 테스트 12개 추가, 디렉토리 모드에 빈-입력=`None` 패턴의 스레드 수 질문 단계 삽입. 41 테스트 통과.
 - [x] **출력 덮어쓰기 방지** — 완료. 단일 변환은 기존 출력 파일에 `OutputExists` 에러, 일괄 변환은 기존 출력 파일을 `skipped` 로 집계. 47 테스트 통과.
 - [x] **대화형 모드 기본 실행** — 완료. 인자 없이 실행하면 대화형 모드로 진입하고, 비대화형 모드는 `-i`/`-o`/`-f` 를 명시적으로 요구. 51 테스트 통과.
+- [x] **출력 확장자 불일치 방지** — 완료. 단일 변환은 선택 포맷과 출력 확장자가 다르면 `OutputExtensionMismatch` 로 중단하고, 대화형 단일 모드는 입력 단계에서 재입력 유도. 56 테스트 통과.
 - [ ] **`image` 0.25 업그레이드** — 10-bit AVIF 디코딩 지원. breaking change 가 있어 별도 작업. 업그레이드 후 ravif 의 8-bit 강제도 풀어줄 수 있음
 - [ ] **HEIC 입력** — `libheif` 시스템 의존성 + `libheif-rs` 등 외부 크레이트. 부담 큼.
 - [ ] **대화형 모드 통합 테스트** — `dialoguer::Select` 가 PTY 필요해서 `rexpect` 등 도입 부담. 우선순위 낮음 (위 리팩토링으로 검증/경로 로직은 단위 테스트로 커버됨).
