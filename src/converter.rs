@@ -3,7 +3,7 @@ use image::{DynamicImage, GenericImageView, ImageOutputFormat};
 use indicatif::{ProgressBar, ProgressStyle};
 use ravif::{BitDepth, Encoder as AvifEncoder, Img, RGBA8};
 use std::fs;
-use std::io::Cursor;
+use std::io::{Cursor, ErrorKind, Write};
 use webp::Encoder as WebpEncoder;
 
 use crate::error::{ConverterError, Result};
@@ -60,6 +60,29 @@ fn encode_to(img: &DynamicImage, format: OutputFormat, quality: f32) -> Result<V
     }
 }
 
+fn ensure_output_available(output_path: &str) -> Result<()> {
+    if std::path::Path::new(output_path).exists() {
+        return Err(ConverterError::OutputExists(output_path.to_string()));
+    }
+    Ok(())
+}
+
+fn write_output_file(output_path: &str, data: &[u8]) -> Result<()> {
+    let mut file = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(output_path)
+        .map_err(|e| {
+            if e.kind() == ErrorKind::AlreadyExists {
+                ConverterError::OutputExists(output_path.to_string())
+            } else {
+                ConverterError::Io(e)
+            }
+        })?;
+    file.write_all(data)?;
+    Ok(())
+}
+
 /// 이미지 변환 (출력 없음). 테스트와 배치 모드에서 사용
 pub fn convert_image_silent(
     input_path: &str,
@@ -68,10 +91,11 @@ pub fn convert_image_silent(
     quality: f32,
 ) -> Result<ConvertStats> {
     let input_size = fs::metadata(input_path)?.len();
+    ensure_output_available(output_path)?;
     let img = image::open(input_path)?;
     let (width, height) = img.dimensions();
     let data = encode_to(&img, format, quality)?;
-    fs::write(output_path, &data)?;
+    write_output_file(output_path, &data)?;
     let output_size = fs::metadata(output_path)?.len();
     Ok(ConvertStats {
         input_size,
@@ -101,6 +125,7 @@ pub fn convert_image(
     pb.set_message("파일 분석 중...");
     pb.set_position(10);
     let input_size = fs::metadata(input_path)?.len();
+    ensure_output_available(output_path)?;
 
     pb.set_position(20);
     pb.set_message("이미지 로딩 중...");
@@ -121,7 +146,7 @@ pub fn convert_image(
 
     pb.set_position(80);
     pb.set_message("파일 저장 중...");
-    fs::write(output_path, &data)?;
+    write_output_file(output_path, &data)?;
 
     pb.set_position(100);
     pb.finish_with_message("✅ 변환 완료!");

@@ -137,110 +137,118 @@ cargo test --release
    - 디렉토리 안의 PNG 3개를 일괄 변환
    - 모든 파일이 성공적으로 변환되고 출력 디렉토리에 생성되는지 확인
 
-8. **`test_batch_skips_non_image_files`**
+8. **`test_batch_skips_existing_output_files`**
+   - 이미 존재하는 출력 파일은 덮어쓰지 않고 건너뛰는지 확인
+   - `BatchSummary.skipped` 카운트와 기존 파일 내용 보존을 검증
+
+9. **`test_batch_skips_non_image_files`**
    - `.txt`, `.md` 같은 비이미지 파일은 자동으로 스킵되는지 확인
 
-9. **`test_batch_recursive_conversion`**
+10. **`test_batch_recursive_conversion`**
    - 재귀 옵션 사용 시 하위 디렉토리도 처리되고, 출력에 구조가 미러링되는지 확인
 
-10. **`test_batch_non_recursive_skips_subdirs`**
+11. **`test_batch_non_recursive_skips_subdirs`**
    - 재귀 옵션 없이 실행 시 하위 디렉토리는 무시되는지 확인
 
-11. **`test_batch_empty_directory`**
+12. **`test_batch_empty_directory`**
     - 이미지가 없는 디렉토리에서도 에러 없이 0개 처리로 끝나는지 확인
 
 ### ❌ 에러 처리 테스트
 
-12. **`test_invalid_format`**
+13. **`test_invalid_format`**
     - 지원하지 않는 형식으로 변환 시도 시 에러 처리 테스트
     - 올바른 에러 메시지가 반환되는지 확인
 
-13. **`test_nonexistent_input_file`**
+14. **`test_nonexistent_input_file`**
     - 존재하지 않는 입력 파일 처리 테스트
     - 파일이 없을 때 적절한 에러가 발생하는지 확인
 
+15. **`test_single_conversion_rejects_existing_output`**
+    - 단일 변환에서 출력 파일이 이미 있으면 `OutputExists` 에러를 반환하는지 확인
+    - 기존 출력 파일 내용이 보존되는지 검증
+
 ### 🔁 다중 포맷 입출력 테스트
 
-14. **`test_png_output_from_webp_input`**
+16. **`test_png_output_from_webp_input`**
     - WebP → PNG 역변환이 동작하는지 확인 (`encode_to` 의 PNG 분기 + WebP 디코딩)
     - 출력 파일이 PNG 매직 바이트(`89 50 4E 47`) 로 시작하는지 검증
 
-15. **`test_jpeg_output_from_png_input`**
+17. **`test_jpeg_output_from_png_input`**
     - PNG → JPEG 변환이 동작하는지 확인
     - 출력 파일이 JPEG 매직 바이트(`FF D8 FF`) 로 시작하는지 검증
 
-16. **`test_jpg_alias_for_jpeg`**
+18. **`test_jpg_alias_for_jpeg`**
     - 포맷 인자 `"jpg"` 와 `"jpeg"` 가 같은 JPEG 인코딩 분기로 매핑되는지 확인
 
-17. **`test_tiff_input_to_webp`**
+19. **`test_tiff_input_to_webp`**
     - TIFF 입력이 디코딩되어 WebP 로 변환되는지 확인 (`is_supported_image` 화이트리스트 + `image::open` TIFF 디코더)
 
-18. **`test_bmp_input_to_jpeg`**
+20. **`test_bmp_input_to_jpeg`**
     - BMP 입력이 디코딩되어 JPEG 로 변환되는지 확인
 
-19. **`test_batch_mixed_input_formats`**
+21. **`test_batch_mixed_input_formats`**
     - PNG + WebP + AVIF + TIFF + BMP 5종이 한 디렉토리에 섞여 있을 때 모두 PNG 로 일괄 변환되는지 확인 (배치 모드의 입력 화이트리스트 + 다중 디코더 결합 검증)
 
-20. **`test_avif_input_to_png`**
+22. **`test_avif_input_to_png`**
     - AVIF → PNG 라운드트립이 동작하는지 확인 (`avif-decoder` feature + `dav1d` 디코딩, 8-bit AVIF 인코딩)
     - 출력 파일이 PNG 매직 바이트로 시작하는지 검증
 
-21. **`test_batch_with_explicit_threads`**
+23. **`test_batch_with_explicit_threads`**
     - `convert_directory()` 의 `threads: Option<usize>` 인자 검증
     - `None` (기본) 과 `Some(1)` (단일 스레드) 두 모드에서 같은 입력에 대해 같은 성공 개수가 나오는지 확인 (스레드 수에 결과가 영향받지 않아야 함)
 
-22. **`test_jpeg_input_to_webp`**
+24. **`test_jpeg_input_to_webp`**
     - JPEG 입력을 WebP 로 변환하는 명시적 단일 케이스
     - 출력 파일이 RIFF/WEBP 시그니처로 시작하는지 검증
 
-23. **`test_jpeg_input_to_png`**
+25. **`test_jpeg_input_to_png`**
     - JPEG 입력을 PNG 로 변환 (JPEG 디코더 + PNG 인코더 결합)
     - 출력이 PNG 매직 바이트(`89 50 4E 47`) 로 시작하는지 검증
 
-24. **`test_jpg_extension_input`**
+26. **`test_jpg_extension_input`**
     - 입력 측 `.jpg` 확장자도 JPEG 디코더로 정상 인식되는지 확인 (`.jpg`/`.jpeg` 양쪽 별칭 회귀 방지)
 
 ### 🛠️ CLI 인자 파서 단위 테스트 (`src/main.rs`)
 
-25. **`parse_quality_accepts_valid_range`**
+27. **`parse_quality_accepts_valid_range`**
     - `--quality` 가 1.0 / 50.5 / 100.0 같은 정상 범위 값을 통과시키는지 확인
 
-26. **`parse_quality_rejects_out_of_range`**
+28. **`parse_quality_rejects_out_of_range`**
     - 0, 0.99, 100.01, -10, 200 같은 범위 외 값이 거부되는지 확인
 
-27. **`parse_quality_rejects_non_numeric`**
+29. **`parse_quality_rejects_non_numeric`**
     - `"abc"` 같은 비숫자 입력이 한국어 에러 메시지("유효한 숫자가 아닙니다") 와 함께 거부되는지 확인
 
-28. **`parse_threads_accepts_positive`**
+30. **`parse_threads_accepts_positive`**
     - `--threads` 가 1, 16 같은 양의 정수를 통과시키는지 확인
 
-29. **`parse_threads_rejects_zero`**
+31. **`parse_threads_rejects_zero`**
     - 0 이 거부되고 한국어 에러 메시지("1 이상") 가 포함되는지 확인 (rayon 풀 빌드 단계 panic 방지)
 
-30. **`parse_threads_rejects_non_numeric`**
+32. **`parse_threads_rejects_non_numeric`**
     - 비숫자(`"abc"`) 와 음수(`"-1"`) 입력 거부 확인
 
-31. **`parse_format_accepts_valid_values_case_insensitive`**
+33. **`parse_format_accepts_valid_values_case_insensitive`**
     - `--format WEBP` 처럼 대문자로 입력해도 `OutputFormat::Webp` 로 파싱되는지 확인
 
-32. **`parse_format_rejects_invalid_value`**
+34. **`parse_format_rejects_invalid_value`**
     - `--format xyz` 같은 미지원 출력 포맷을 clap 단계에서 거부하는지 확인
 
 ### 🎯 대화형 모드 검증 단위 테스트 (`src/interactive.rs`)
 
-33. **`validate_input_path_*`** (4개)
+35. **`validate_input_path_*`** (4개)
     - 존재하지 않는 경로 거부, 단일 모드에 디렉토리 입력 거부, 배치 모드에 파일 입력 거부, 정상 케이스(파일/디렉토리) 통과
 
-34. **`validate_quality_input_*`** (2개)
+36. **`validate_quality_input_*`** (2개)
     - 1.0/50.5/100.0 정상 범위 통과, 0 / 0.99 / 100.01 / -10 / `"abc"` 거부
 
-35. **`validate_threads_input_*`** (2개)
+37. **`validate_threads_input_*`** (2개)
     - 1, 16 통과, 0 / -1 / `"abc"` / 빈 입력 거부
 
-36. **`default_output_path_for_file_*`** (2개)
+38. **`default_output_path_for_file_*`** (2개)
     - `{stem}_converted.{format}` 패턴 (예: `photo.png` + webp → `photo_converted.webp`), 확장자 없는 입력 (`no_ext` + png → `no_ext_converted.png`) 처리
 
-37. **`default_output_path_for_dir_*`** (2개)
+39. **`default_output_path_for_dir_*`** (2개)
     - `{dirname}_converted_{format}` 패턴 (예: `photos` + webp → `photos_converted_webp`), trailing slash (`/tmp/photos/`) 정상 처리
 
 ## 테스트 매크로
@@ -301,15 +309,16 @@ fn test_new_feature() {
 
 ## 테스트 커버리지
 
-현재 테스트는 다음 영역을 커버합니다 (총 45개):
+현재 테스트는 다음 영역을 커버합니다 (총 47개):
 - ✅ 파일 크기 포맷팅
 - ✅ 출력 요약 라벨 (PNG 무손실 / 손실 포맷 품질 표시)
 - ✅ WebP / AVIF 단일 변환
 - ✅ 품질 파라미터 검증
 - ✅ 디렉토리 일괄 변환 (재귀 / 비재귀)
+- ✅ 출력 덮어쓰기 방지 (단일 변환 에러 / 일괄 변환 건너뜀)
 - ✅ 비이미지 파일 자동 스킵
 - ✅ 빈 디렉토리 처리
-- ✅ 에러 처리 (지원하지 않는 형식, 존재하지 않는 파일)
+- ✅ 에러 처리 (지원하지 않는 형식, 존재하지 않는 파일, 기존 출력 파일)
 - ✅ PNG / JPEG 출력 (WebP → PNG 역변환, AVIF → PNG 역변환, PNG → JPEG, jpg 별칭)
 - ✅ TIFF / BMP / AVIF 입력 디코딩
 - ✅ 혼합 입력 포맷 일괄 변환 (PNG + WebP + AVIF + TIFF + BMP → PNG)

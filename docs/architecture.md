@@ -46,9 +46,9 @@ image_converter/
 ### `error.rs` (에러 타입)
 
 - `ConverterError` enum + `Result<T>` 별칭
-- thiserror 기반, 외부 크레이트 에러(io, image, dialoguer, ravif, ParseFloat) 는 `#[from]` 으로 자동 변환
+- thiserror 기반, 외부 크레이트 에러(io, image, dialoguer, ravif, ParseFloat, rayon) 는 `#[from]` 으로 자동 변환
 - WebP 인코더의 `&str` 에러는 별도 `Webp(String)` variant 로 매핑 (소유권 확보)
-- 사용자 입력성 에러는 `UnsupportedFormat`, `InvalidPath` 등 컨텍스트가 담긴 variant
+- 사용자 입력성 에러는 `UnsupportedFormat`, `InvalidPath`, `OutputExists` 등 컨텍스트가 담긴 variant
 - Display 메시지는 모두 한국어 (`"입출력 오류: ..."`, `"지원하지 않는 포맷입니다: xyz"` 등)
 
 ### `format.rs` (출력 포맷 타입)
@@ -68,14 +68,15 @@ image_converter/
 - `convert_image`: 진행률 + 결과 출력 포함
 - `convert_image_silent`: 출력 없는 변환 (`ConvertStats` 반환). 배치 모드와 테스트에서 사용
 - 두 함수 모두 동일한 내부 인코딩 헬퍼를 호출 (코드 중복 제거)
+- 출력 파일은 `create_new` 방식으로 생성하여 기존 파일을 덮어쓰지 않음. 이미 있으면 `OutputExists` 에러 반환
 
 ### `batch.rs` (디렉토리 일괄 변환)
 
 - `convert_directory`: 입력 디렉토리에서 지원 포맷만 골라 **rayon 으로 병렬** 변환
   - 입력 화이트리스트: `png`/`jpg`/`jpeg`/`webp`/`avif`/`tiff`/`tif`/`bmp`/`ico`
   - 시그니처 끝의 `threads: Option<usize>` 인자로 스레드 수 명시 가능. `None` 이면 rayon 전역 풀 (= `RAYON_NUM_THREADS` 또는 CPU 코어 수), `Some(n)` 이면 `ThreadPoolBuilder::new().num_threads(n).build()` 로 local pool 만들고 `pool.install(|| par_iter)` 패턴으로 scoped 실행. 전역 풀을 변경하지 않아 라이브러리 친화적
-- 각 파일은 `process_one` 헬퍼가 처리하고 `Option<ConvertStats>` 를 반환 — 한 파일이 실패해도 나머지는 그대로 진행
-- 결과는 직렬 합산하여 `BatchSummary` 통계로 반환
+- 각 파일은 `process_one` 헬퍼가 처리하고 변환/건너뜀/실패 결과를 반환 — 한 파일이 실패하거나 기존 출력 파일 때문에 건너뛰어도 나머지는 그대로 진행
+- 결과는 직렬 합산하여 `BatchSummary` 통계로 반환 (`succeeded` / `skipped` / `failed`)
 - 진행률 바 (`indicatif::ProgressBar`) 와 `pb.println` 은 thread-safe (내부 Mutex)
 - 재귀 모드에서 입력 디렉토리 구조를 출력에 미러링
 

@@ -12,6 +12,20 @@
 
 ## 최근 작업 로그
 
+### 2026-05-01 — 출력 덮어쓰기 방지
+
+- 단일 변환(`convert_image`, `convert_image_silent`) 에서 출력 경로가 이미 있으면 `ConverterError::OutputExists` 를 반환하고 기존 파일을 보존하도록 변경
+- 출력 파일 쓰기는 `fs::write` 대신 `OpenOptions::create_new(true)` 를 사용해 check/write 사이의 경쟁 상황에서도 덮어쓰지 않도록 보강
+- 일괄 변환에서는 기존 출력 파일을 실패가 아니라 `skipped` 로 집계하고, 나머지 파일 변환은 계속 진행
+  - `process_one` 결과를 변환/건너뜀/실패로 구분
+  - 배치 요약에 `건너뜀` 개수 표시
+- 회귀 테스트 2개 추가
+  - `test_single_conversion_rejects_existing_output`
+  - `test_batch_skips_existing_output_files`
+- 기존 `test_quality_parameter_bounds` 는 덮어쓰기 방지 정책에 맞춰 최소/최대 품질 출력 파일을 분리
+- README / docs/architecture.md / docs/testing.md 갱신
+- `./scripts/check.sh` 성공 — fmt 통과, Clippy 경고 없음, lib 39개 + bin 8개 = 총 47개 테스트 통과
+
 ### 2026-05-01 — 버전 단일화 + PNG 요약 라벨 개선
 
 - `Cargo.toml` 패키지 버전을 `2.4.0` 으로 올리고, `src/main.rs` 의 clap 버전은 하드코딩 대신 Cargo 패키지 버전을 사용하도록 변경
@@ -230,11 +244,12 @@
 - **음수 인자 (`-q -10`) 는 clap 한계로 별도 워크어라운드 안 함** — clap 은 `-` 시작 토큰을 short option 으로 해석해서 `-1` 이 unknown flag 로 거부됨. `allow_negative_numbers` attribute 를 켜면 우회 가능하지만 사용자가 음수 quality 를 의도적으로 넣는 경우는 거의 없고, `--quality=-10` / `-q 0.5` 형태로는 우리 검증이 정상 차단하므로 단순함을 위해 보류.
 - **대화형 모드 검증은 dialoguer 모킹 대신 순수 함수 분리로 단위 테스트** — `dialoguer::Select` 는 raw TTY 모드라 stdin pipe 시뮬레이션이 안 됨. PTY 도구 (`rexpect` 등) 도입은 환경 의존성이 커서 flaky 위험. 대신 `validate_with` 클로저와 디폴트 경로 빌더처럼 **검증 가치가 큰 순수 로직만 함수로 분리**하면 dialoguer 한 줄도 안 건드리고 단위 테스트 가능. 흐름 자체의 통합 테스트는 비용 대비 가치가 낮아 보류.
 - **대화형 모드 스레드 수 질문은 한 단계 (`allow_empty=true`) 패턴** — 이전 결정 ("대화형 모드는 스레드 수 질문 안 함") 을 부분 뒤집음. `Confirm` (예/아니오) + `Input` (값) 두 단계로 나누면 친절하지만 늘어짐. 한 단계 (`Input::allow_empty(true)`) 로 통합: 빈 입력 = `None` (모든 코어), 숫자 = `Some(n)`. 사용자 친화 + 단계 수 최소.
+- **기존 출력 파일은 덮어쓰지 않음** — 단일 변환은 `OutputExists` 에러로 중단, 일괄 변환은 해당 파일만 `skipped` 로 집계. 출력 쓰기는 `create_new(true)` 로 처리해 변환 도중 같은 출력 경로가 생겨도 덮어쓰지 않음.
 
 ## 진행 중 / 대기
 
 - [x] **clap v4 마이그레이션** — 완료. derive 매크로로 전환.
-- [x] **커스텀 에러 타입 (`thiserror`)** — 완료. `ConverterError` enum + 8 variant.
+- [x] **커스텀 에러 타입 (`thiserror`)** — 완료. `ConverterError` enum + 9 variant.
 - [x] **일괄 변환 병렬화 (`rayon`)** — 완료. 16코어에서 8장 AVIF 변환 8.3배 ↑.
 - [x] **다중 입출력 포맷 지원 (A안)** — 완료. PNG/JPG/JPEG 출력 + WebP/TIFF/BMP/ICO 입력 추가. 18 테스트 통과.
 - [x] **AVIF 입력 (B안)** — 완료. `avif-decoder` feature 활성화 + `libdav1d-dev` 의존성 추가. 라운드트립을 위해 ravif 인코딩을 8-bit 로 강제. 19 테스트 통과.
@@ -242,6 +257,7 @@
 - [x] **JPG/JPEG 단일 입력 명시 회귀 테스트** — 완료. 통합 테스트 3개 추가 (jpeg→webp, jpeg→png, .jpg 확장자 입력). 23 테스트 통과.
 - [x] **CLI 인자 검증 강화** — 완료. `parse_quality` / `parse_threads` 사용자 정의 파서 + 단위 테스트 6개. `--threads 0` 한국어 메시지로 차단, `--quality 200/0.5/abc` 거부. 29 테스트 통과.
 - [x] **대화형 모드 리팩토링 + 단위 테스트 + `--threads` 질문 추가** — 완료. 검증/디폴트 빌더 5개 함수 분리, 단위 테스트 12개 추가, 디렉토리 모드에 빈-입력=`None` 패턴의 스레드 수 질문 단계 삽입. 41 테스트 통과.
+- [x] **출력 덮어쓰기 방지** — 완료. 단일 변환은 기존 출력 파일에 `OutputExists` 에러, 일괄 변환은 기존 출력 파일을 `skipped` 로 집계. 47 테스트 통과.
 - [ ] **`image` 0.25 업그레이드** — 10-bit AVIF 디코딩 지원. breaking change 가 있어 별도 작업. 업그레이드 후 ravif 의 8-bit 강제도 풀어줄 수 있음
 - [ ] **HEIC 입력** — `libheif` 시스템 의존성 + `libheif-rs` 등 외부 크레이트. 부담 큼.
 - [ ] **대화형 모드 통합 테스트** — `dialoguer::Select` 가 PTY 필요해서 `rexpect` 등 도입 부담. 우선순위 낮음 (위 리팩토링으로 검증/경로 로직은 단위 테스트로 커버됨).

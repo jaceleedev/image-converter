@@ -21,6 +21,9 @@ pub enum ConverterError {
     #[error("경로 오류: {0}")]
     InvalidPath(String),
 
+    #[error("출력 경로가 이미 존재합니다: {0}")]
+    OutputExists(String),
+
     #[error("대화형 입력 오류: {0}")]
     Dialog(#[from] dialoguer::Error),
 
