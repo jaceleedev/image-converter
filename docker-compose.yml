@@ -1,0 +1,24 @@
+services:
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        RUST_IMAGE: ${RUST_IMAGE:-rust:1-trixie}
+    image: image-converter-dev
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+      - cargo-registry:/usr/local/cargo/registry
+      - cargo-git:/usr/local/cargo/git
+      - target:/workspace/target
+    environment:
+      CARGO_TARGET_DIR: /workspace/target
+      RUST_BACKTRACE: "1"
+    stdin_open: true
+    tty: true
+
+volumes:
+  cargo-registry:
+  cargo-git:
+  target:

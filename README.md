@@ -27,6 +27,44 @@
 
 ## 📦 설치
 
+### Docker 개발 환경 (추천)
+
+로컬 OS 에 Rust / `nasm` / `dav1d` 를 직접 설치하지 않고, 컨테이너 안에서 빌드와 테스트를 실행할 수 있습니다. WSL, macOS, 새 MacBook 으로 옮겨도 같은 Debian 기반 환경을 사용합니다.
+
+```bash
+# 개발 이미지 빌드
+docker compose build
+
+# 테스트 실행
+docker compose run --rm dev cargo test
+
+# 릴리즈 빌드
+docker compose run --rm dev cargo build --release
+
+# 컨테이너 안에서 CLI 실행
+docker compose run --rm dev cargo run --release -- -i input.png -o output.webp -f webp
+
+# 대화형 모드 실행
+docker compose run --rm dev cargo run --release -- -I
+
+# 컨테이너 안에서 셸 열기
+docker compose run --rm dev
+```
+
+`target` 과 Cargo registry/git 캐시는 Docker named volume 에 저장되어 호스트 프로젝트 디렉토리를 빌드 산출물로 어지럽히지 않습니다. 그래서 기본 흐름은 `cargo run` 도 컨테이너 안에서 실행하는 방식입니다. 완전히 새로 받고 싶으면 다음처럼 볼륨까지 지웁니다.
+
+```bash
+docker compose down -v
+```
+
+기본 Rust 이미지는 `rust:1-trixie` 입니다. `dav1d-sys` 가 `dav1d >= 1.3.0` 을 요구하므로 Debian bookworm 대신 trixie 를 사용합니다. 특정 버전으로 고정하고 싶으면 `.env` 파일이나 명령 앞 환경변수로 바꿀 수 있습니다.
+
+```bash
+RUST_IMAGE=rust:1.94-trixie docker compose build
+```
+
+### 로컬 설치
+
 1. Rust가 설치되어 있어야 합니다. [Rust 설치 가이드](https://www.rust-lang.org/tools/install)를 참고하세요.
 2. **시스템 라이브러리 설치** — AVIF 인코딩(`rav1e`)에는 `nasm`, AVIF 디코딩(`dav1d`)에는 `libdav1d` 가 필요합니다.
 
