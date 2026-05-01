@@ -39,8 +39,8 @@ image_converter/
 ### `main.rs` (진입점)
 
 - CLI 인자 파싱 (clap 사용)
-- 인자 없는 실행 또는 `-I/--interactive` 는 대화형 모드로 분기
-- 명령줄 모드에서는 `-i/--input`, `-o/--output`, `-f/--format` 을 명시적으로 요구
+- 인자 없는 실행 또는 `-I/--interactive` 는 대화형 모드로 분기 (기본 UX)
+- 명령줄 모드는 자동화/반복 작업용이며 `-i/--input`, `-o/--output`, `-f/--format` 을 명시적으로 요구
 - 입력 경로 타입(파일/디렉토리)에 따라 단일/일괄 변환 분기
 - 에러 처리 및 종료 — `ConverterError` 의 `Display` 로 메시지 출력
 

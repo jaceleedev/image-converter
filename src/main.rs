@@ -26,11 +26,16 @@ fn parse_threads(s: &str) -> Result<usize, String> {
     Ok(n)
 }
 
-/// PNG/JPG/JPEG/WebP/AVIF/TIFF/BMP/ICO 이미지를 PNG/JPG/WebP/AVIF 로 변환합니다 (단일 파일 + 디렉토리 일괄)
+/// 대화형 안내로 웹용 이미지를 PNG/JPG/WebP/AVIF 로 변환합니다
 #[derive(Parser, Debug)]
-#[command(name = "image_converter", version, about, long_about = None)]
+#[command(
+    name = "image_converter",
+    version,
+    about,
+    long_about = "인자 없이 실행하면 대화형 모드로 시작합니다. -i/-o/-f 옵션은 반복 작업이나 스크립트 자동화가 필요할 때 사용할 수 있습니다."
+)]
 struct Cli {
-    /// 대화형 모드로 실행
+    /// 대화형 모드로 명시 실행
     #[arg(short = 'I', long)]
     interactive: bool,
 
