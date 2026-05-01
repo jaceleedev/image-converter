@@ -234,21 +234,27 @@ cargo test --release
 34. **`parse_format_rejects_invalid_value`**
     - `--format xyz` 같은 미지원 출력 포맷을 clap 단계에서 거부하는지 확인
 
+35. **대화형 기본 실행 / 비대화형 필수 인자 테스트** (4개)
+    - 인자 없이 실행하는 파싱 결과가 대화형 기본 실행으로 분기되는지 확인
+    - `-I` 플래그가 입력/출력/포맷 없이도 대화형 모드로 분기되는지 확인
+    - 비대화형 모드에서 `-i`/`-o`/`-f` 누락 목록을 올바르게 계산하는지 확인
+    - `-i`/`-o`/`-f` 가 모두 있으면 누락 인자가 없는지 확인
+
 ### 🎯 대화형 모드 검증 단위 테스트 (`src/interactive.rs`)
 
-35. **`validate_input_path_*`** (4개)
+36. **`validate_input_path_*`** (4개)
     - 존재하지 않는 경로 거부, 단일 모드에 디렉토리 입력 거부, 배치 모드에 파일 입력 거부, 정상 케이스(파일/디렉토리) 통과
 
-36. **`validate_quality_input_*`** (2개)
+37. **`validate_quality_input_*`** (2개)
     - 1.0/50.5/100.0 정상 범위 통과, 0 / 0.99 / 100.01 / -10 / `"abc"` 거부
 
-37. **`validate_threads_input_*`** (2개)
+38. **`validate_threads_input_*`** (2개)
     - 1, 16 통과, 0 / -1 / `"abc"` / 빈 입력 거부
 
-38. **`default_output_path_for_file_*`** (2개)
+39. **`default_output_path_for_file_*`** (2개)
     - `{stem}_converted.{format}` 패턴 (예: `photo.png` + webp → `photo_converted.webp`), 확장자 없는 입력 (`no_ext` + png → `no_ext_converted.png`) 처리
 
-39. **`default_output_path_for_dir_*`** (2개)
+40. **`default_output_path_for_dir_*`** (2개)
     - `{dirname}_converted_{format}` 패턴 (예: `photos` + webp → `photos_converted_webp`), trailing slash (`/tmp/photos/`) 정상 처리
 
 ## 테스트 매크로
@@ -309,7 +315,7 @@ fn test_new_feature() {
 
 ## 테스트 커버리지
 
-현재 테스트는 다음 영역을 커버합니다 (총 47개):
+현재 테스트는 다음 영역을 커버합니다 (총 51개):
 - ✅ 파일 크기 포맷팅
 - ✅ 출력 요약 라벨 (PNG 무손실 / 손실 포맷 품질 표시)
 - ✅ WebP / AVIF 단일 변환
@@ -324,7 +330,7 @@ fn test_new_feature() {
 - ✅ 혼합 입력 포맷 일괄 변환 (PNG + WebP + AVIF + TIFF + BMP → PNG)
 - ✅ 명시적 스레드 수 옵션 (`threads=None` vs `threads=Some(1)` 결과 일관성)
 - ✅ JPG/JPEG 단일 입력 (jpeg→webp, jpeg→png, .jpg 확장자 별칭)
-- ✅ CLI 인자 파서 (`--quality` 1.0~100.0 범위, `--threads` ≥ 1 검증, 출력 포맷 허용값 검증, 비숫자/범위 외 거부)
+- ✅ CLI 인자 파서 (`--quality` 1.0~100.0 범위, `--threads` ≥ 1 검증, 출력 포맷 허용값 검증, 대화형 기본 실행, 비대화형 필수 인자 검증)
 - ✅ 대화형 모드 검증 클로저 + 디폴트 출력 경로 빌더 (순수 함수로 분리하여 단위 테스트)
 
 향후 추가할 수 있는 테스트:
