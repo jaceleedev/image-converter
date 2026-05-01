@@ -30,7 +30,7 @@ Docker 사용을 기본으로 합니다. 로컬 OS 에 Rust, `nasm`, `dav1d` 를
 docker compose build
 ./scripts/check.sh
 docker compose run --rm dev cargo build --release
-docker compose run --rm dev cargo run --release -- -I
+docker compose run --rm dev cargo run --release
 ```
 
 로컬 Rust 를 쓸 때는 `nasm`, `libdav1d`/`dav1d`, `pkg-config` 가 필요합니다. 자세한 설치법은 `README.md` 를 참고하세요.

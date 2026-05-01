@@ -1,4 +1,4 @@
-use clap::Parser;
+use clap::{error::ErrorKind, CommandFactory, Parser};
 use colored::*;
 use std::path::Path;
 
@@ -35,32 +35,15 @@ struct Cli {
     interactive: bool,
 
     /// 변환할 입력 이미지 파일 또는 디렉토리 경로
-    #[arg(
-        short,
-        long,
-        value_name = "PATH",
-        required_unless_present = "interactive"
-    )]
+    #[arg(short, long, value_name = "PATH")]
     input: Option<String>,
 
     /// 출력 파일 또는 디렉토리 경로
-    #[arg(
-        short,
-        long,
-        value_name = "PATH",
-        required_unless_present = "interactive"
-    )]
+    #[arg(short, long, value_name = "PATH")]
     output: Option<String>,
 
     /// 출력 포맷 (png, jpg, jpeg, webp, avif)
-    #[arg(
-        short,
-        long,
-        value_name = "FORMAT",
-        value_enum,
-        ignore_case = true,
-        required_unless_present = "interactive"
-    )]
+    #[arg(short, long, value_name = "FORMAT", value_enum, ignore_case = true)]
     format: Option<OutputFormat>,
 
     /// 변환 품질 1-100 (PNG 는 무손실이라 무시됨, 기본값: 90)
@@ -76,12 +59,44 @@ struct Cli {
     threads: Option<usize>,
 }
 
+fn should_enter_interactive(cli: &Cli, invoked_without_args: bool) -> bool {
+    cli.interactive || invoked_without_args
+}
+
+fn missing_non_interactive_args(cli: &Cli) -> Vec<&'static str> {
+    let mut missing = Vec::new();
+    if cli.input.is_none() {
+        missing.push("-i/--input");
+    }
+    if cli.output.is_none() {
+        missing.push("-o/--output");
+    }
+    if cli.format.is_none() {
+        missing.push("-f/--format");
+    }
+    missing
+}
+
 fn main() {
+    let invoked_without_args = std::env::args_os().len() == 1;
     let cli = Cli::parse();
 
-    let result = if cli.interactive {
+    let result = if should_enter_interactive(&cli, invoked_without_args) {
         interactive_mode()
     } else {
+        let missing = missing_non_interactive_args(&cli);
+        if !missing.is_empty() {
+            Cli::command()
+                .error(
+                    ErrorKind::MissingRequiredArgument,
+                    format!(
+                        "비대화형 모드에서는 {} 옵션이 필요합니다. 인자 없이 실행하면 대화형 모드로 시작합니다.",
+                        missing.join(", ")
+                    ),
+                )
+                .exit();
+        }
+
         let input = cli.input.expect("input은 비대화형 모드에서 필수입니다");
         let output = cli.output.expect("output은 비대화형 모드에서 필수입니다");
         let format = cli.format.expect("format은 비대화형 모드에서 필수입니다");
@@ -181,5 +196,44 @@ mod tests {
         .to_string();
         assert!(err.contains("xyz"));
         assert!(err.contains("png") && err.contains("webp") && err.contains("avif"));
+    }
+
+    #[test]
+    fn parse_no_args_is_valid_for_interactive_default() {
+        let cli = Cli::try_parse_from(["image_converter"]).unwrap();
+        assert!(should_enter_interactive(&cli, true));
+        assert!(missing_non_interactive_args(&cli).contains(&"-i/--input"));
+    }
+
+    #[test]
+    fn interactive_flag_enters_interactive_even_with_no_paths() {
+        let cli = Cli::try_parse_from(["image_converter", "-I"]).unwrap();
+        assert!(should_enter_interactive(&cli, false));
+    }
+
+    #[test]
+    fn non_interactive_mode_reports_missing_required_args() {
+        let cli = Cli::try_parse_from(["image_converter", "-q", "80"]).unwrap();
+        assert!(!should_enter_interactive(&cli, false));
+        assert_eq!(
+            missing_non_interactive_args(&cli),
+            vec!["-i/--input", "-o/--output", "-f/--format"]
+        );
+    }
+
+    #[test]
+    fn non_interactive_mode_accepts_required_args() {
+        let cli = Cli::try_parse_from([
+            "image_converter",
+            "-i",
+            "input.png",
+            "-o",
+            "output.webp",
+            "-f",
+            "webp",
+        ])
+        .unwrap();
+        assert!(!should_enter_interactive(&cli, false));
+        assert!(missing_non_interactive_args(&cli).is_empty());
     }
 }

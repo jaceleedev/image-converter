@@ -59,11 +59,11 @@ docker compose run --rm dev cargo clippy --all-targets --all-features -- -D warn
 # 릴리즈 빌드
 docker compose run --rm dev cargo build --release
 
-# 컨테이너 안에서 CLI 실행
-docker compose run --rm dev cargo run --release -- -i input.png -o output.webp -f webp
-
 # 대화형 모드 실행
-docker compose run --rm dev cargo run --release -- -I
+docker compose run --rm dev cargo run --release
+
+# 명령줄 모드 실행
+docker compose run --rm dev cargo run --release -- -i input.png -o output.webp -f webp
 
 # 컨테이너 안에서 셸 열기
 docker compose run --rm dev
@@ -114,13 +114,13 @@ RUST_IMAGE=rust:1.94-trixie docker compose build
 ### 대화형 모드 (추천) 🌟
 
 ```bash
-./target/release/image_converter -I
+./target/release/image_converter
 ```
 
-또는
+명시적으로 대화형 모드를 지정할 수도 있습니다.
 
 ```bash
-./target/release/image_converter --interactive
+./target/release/image_converter -I
 ```
 
 단계별로 안내를 따라 쉽게 이미지를 변환할 수 있습니다:
@@ -175,7 +175,7 @@ RAYON_NUM_THREADS=4 ./target/release/image_converter -i photos -o photos_webp -f
 
 ## 📊 옵션
 
-- `-I, --interactive`: 대화형 모드 실행
+- `-I, --interactive`: 대화형 모드 명시 실행 (인자 없이 실행해도 대화형 모드로 시작)
 - `-i, --input <PATH>`: 입력 이미지 파일 또는 디렉토리 경로
 - `-o, --output <PATH>`: 출력 파일 또는 디렉토리 경로
 - `-f, --format <FORMAT>`: 출력 형식 (`png`, `jpg`, `jpeg`, `webp`, `avif`)
@@ -218,18 +218,17 @@ RAYON_NUM_THREADS=4 ./target/release/image_converter -i photos -o photos_webp -f
 
 ```bash
 alias imgconv='~/image_converter/target/release/image_converter'
-# 대화형 모드로 바로 실행
-alias imgconvi='~/image_converter/target/release/image_converter -I'
+# 명령줄 모드를 따로 쓰고 싶을 때만 옵션을 붙이면 됨
 ```
 
 이후에는 다음과 같이 사용할 수 있습니다:
 
 ```bash
-# 일반 모드
-imgconv -i input.png -o output.webp -f webp -q 80
-
 # 대화형 모드
-imgconvi
+imgconv
+
+# 명령줄 모드
+imgconv -i input.png -o output.webp -f webp -q 80
 ```
 
 ## 🛠️ 기술 스택
