@@ -12,4 +12,4 @@ pub use batch::{convert_directory, BatchSummary};
 pub use converter::{convert_image, convert_image_silent, ConvertStats};
 pub use error::{ConverterError, Result};
 pub use format::OutputFormat;
-pub use utils::format_file_size;
+pub use utils::{format_file_size, format_quality_label};

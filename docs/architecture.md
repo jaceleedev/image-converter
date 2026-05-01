@@ -11,6 +11,8 @@ image_converter/
 ├── docker-compose.yml      # 개발/테스트용 컨테이너 실행 설정
 ├── Cargo.toml              # Rust 프로젝트 설정 및 의존성
 ├── README.md               # 프로젝트 사용 가이드
+├── scripts/
+│   └── check.sh            # 로컬 품질 검사 (fmt + clippy + test)
 ├── docs/
 │   ├── README.md           # 개발 문서 인덱스
 │   ├── architecture.md     # 이 문서
@@ -90,6 +92,7 @@ image_converter/
 ### `utils.rs` (공통 유틸리티)
 
 - 파일 크기 포맷팅
+- 출력 요약의 품질/무손실 라벨 포맷팅
 - 기타 헬퍼 함수
 
 ### `lib.rs` (라이브러리 인터페이스)
@@ -105,8 +108,9 @@ image_converter/
 
 ### Docker 개발 환경
 
-- `Dockerfile`: 공식 Rust Debian 이미지를 기반으로 `nasm`, `libdav1d-dev`, `pkg-config`, `rustfmt` 를 설치
+- `Dockerfile`: 공식 Rust Debian 이미지를 기반으로 `nasm`, `libdav1d-dev`, `pkg-config`, `rustfmt`, `clippy` 를 설치
 - `docker-compose.yml`: 현재 작업 디렉토리를 `/workspace` 로 마운트하고 Cargo registry/git/target 을 Docker named volume 으로 분리
+- `scripts/check.sh`: Docker 컨테이너에서 `cargo fmt --check`, `cargo clippy --all-targets --all-features -- -D warnings`, `cargo test` 를 한 번에 실행. `--local` 옵션을 주면 호스트 Cargo 로 실행
 - 기본 이미지는 `rust:1-trixie` (`dav1d >= 1.3.0` 필요), 필요 시 `RUST_IMAGE=rust:1.94-trixie docker compose build` 처럼 고정 가능
 
 ## 장점

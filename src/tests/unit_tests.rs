@@ -1,4 +1,4 @@
-use crate::format_file_size;
+use crate::{format_file_size, format_quality_label, OutputFormat};
 use crate::{test_description, test_step, test_success};
 
 #[test]
@@ -47,4 +47,29 @@ fn test_format_file_size_edge_cases() {
     // 1GB 직전
     assert_eq!(format_file_size(1024 * 1024 * 1024 - 1), "1024.00 MB");
     test_success!("1GB 직전 처리 완료");
+}
+
+#[test]
+fn test_format_quality_label_for_lossy_formats() {
+    test_description!("손실 압축 포맷의 품질 라벨 테스트");
+    test_step!("WebP/JPEG/AVIF 는 품질 값을 표시하는지 확인");
+
+    assert_eq!(format_quality_label(OutputFormat::Webp, 90.0), "품질: 90%");
+    assert_eq!(format_quality_label(OutputFormat::Jpeg, 85.5), "품질: 85%");
+    assert_eq!(
+        format_quality_label(OutputFormat::Avif, 100.0),
+        "품질: 100%"
+    );
+
+    test_success!("손실 포맷 품질 라벨 확인");
+}
+
+#[test]
+fn test_format_quality_label_for_png() {
+    test_description!("PNG 무손실 라벨 테스트");
+    test_step!("PNG 는 품질 값 대신 무손실로 표시하는지 확인");
+
+    assert_eq!(format_quality_label(OutputFormat::Png, 90.0), "무손실");
+
+    test_success!("PNG 무손실 라벨 확인");
 }

@@ -43,11 +43,17 @@
 # 개발 이미지 빌드
 docker compose build
 
+# 전체 품질 검사 (포맷팅 + Clippy + 테스트)
+./scripts/check.sh
+
 # 테스트 실행
 docker compose run --rm dev cargo test
 
 # 포맷팅
-docker compose run --rm dev cargo fmt
+docker compose run --rm dev cargo fmt --check
+
+# 린트
+docker compose run --rm dev cargo clippy --all-targets --all-features -- -D warnings
 
 # 릴리즈 빌드
 docker compose run --rm dev cargo build --release
@@ -61,6 +67,8 @@ docker compose run --rm dev cargo run --release -- -I
 # 컨테이너 안에서 셸 열기
 docker compose run --rm dev
 ```
+
+호스트에 Rust 와 시스템 의존성을 직접 설치한 경우에는 `./scripts/check.sh --local` 로 같은 검사를 로컬 Cargo 로 실행할 수 있습니다.
 
 `target` 과 Cargo registry/git 캐시는 Docker named volume 에 저장되어 호스트 프로젝트 디렉토리를 빌드 산출물로 어지럽히지 않습니다. 그래서 기본 흐름은 `cargo run` 도 컨테이너 안에서 실행하는 방식입니다. 완전히 새로 받고 싶으면 다음처럼 볼륨까지 지웁니다.
 

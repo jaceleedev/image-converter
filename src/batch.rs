@@ -7,7 +7,7 @@ use walkdir::WalkDir;
 use crate::converter::{convert_image_silent, ConvertStats};
 use crate::error::{ConverterError, Result};
 use crate::format::OutputFormat;
-use crate::utils::format_file_size;
+use crate::utils::{format_file_size, format_quality_label};
 
 /// 디렉토리 변환 결과 합계
 pub struct BatchSummary {
@@ -176,7 +176,7 @@ pub fn convert_directory(
     }
 
     pb.finish_with_message("✅ 일괄 변환 완료!");
-    print_batch_summary(&summary, quality);
+    print_batch_summary(&summary, format, quality);
     Ok(summary)
 }
 
@@ -245,7 +245,7 @@ fn process_one(
     result
 }
 
-fn print_batch_summary(summary: &BatchSummary, quality: f32) {
+fn print_batch_summary(summary: &BatchSummary, format: OutputFormat, quality: f32) {
     println!("\n{} 일괄 변환 결과:", "📊".bright_blue());
     println!(
         "  {} 처리 대상: {}개",
@@ -274,10 +274,10 @@ fn print_batch_summary(summary: &BatchSummary, quality: f32) {
             format_file_size(summary.total_input_size).bright_yellow()
         );
         println!(
-            "  {} 변환 합계: {} (품질: {}%)",
+            "  {} 변환 합계: {} ({})",
             "💾".bright_green(),
             format_file_size(summary.total_output_size).bright_green(),
-            quality as u32
+            format_quality_label(format, quality)
         );
         println!(
             "  {} 평균 용량 감소: {:.1}% {}",
