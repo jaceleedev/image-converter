@@ -19,6 +19,8 @@ image_converter/
 │   ├── testing.md          # 테스트 실행 가이드
 │   ├── release-notes.md    # 버전별 주요 변경 사항
 │   └── memory.md           # 작업 로그와 결정 기록
+├── tests/
+│   └── interactive_cli.rs  # 대화형 CLI PTY 통합 테스트
 └── src/
     ├── main.rs             # 진입점 - CLI 인자 처리, 단일/일괄 분기
     ├── lib.rs              # 라이브러리 루트 - 공개 API re-export
@@ -122,6 +124,7 @@ image_converter/
 - 단위 테스트와 통합 테스트 분리
 - 테스트 유틸리티 및 매크로
 - 깔끔한 테스트 출력
+- 루트 `tests/interactive_cli.rs` 는 `rexpect` 로 실제 PTY 에서 바이너리를 실행해 `dialoguer` 기반 대화형 흐름을 검증
 
 ### Docker 개발 환경
 
@@ -162,7 +165,7 @@ main.rs
 
 1. **`image` 0.25 업그레이드**: 10-bit AVIF 디코딩 지원. breaking change 가 있어 별도 작업
 2. **HEIC 입력**: iPhone 사진 변환용. `libheif` 시스템 의존성 + 외부 크레이트
-3. **대화형 모드 통합 테스트**: 현재는 검증/경로 빌더 단위 테스트만. `dialoguer` 의 `Select` 가 raw TTY 모드라 `rexpect` 등 PTY 도구 필요
+3. **대화형 모드 추가 PTY 시나리오**: 현재는 단일 파일 기본 흐름만 통합 테스트. 배치 모드, JPEG 배경색 직접 입력, 리사이즈 적용 흐름은 필요 시 추가
 4. **설정 모듈**: 품질 프리셋, 기본값 등을 관리하는 `config.rs`
 5. **다국어 지원**: 메시지를 별도 파일로 분리
 

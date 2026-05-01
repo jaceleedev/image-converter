@@ -16,6 +16,8 @@ src/
     test_utils.rs # 테스트 헬퍼 함수 및 매크로
     unit_tests.rs # 단위 테스트
     integration_tests.rs # 통합 테스트
+tests/
+  interactive_cli.rs # rexpect 기반 대화형 CLI PTY 통합 테스트
 ```
 
 ## 테스트 실행 방법
@@ -303,6 +305,14 @@ cargo test --release
     - `#RRGGBB` 와 `RRGGBB` 입력을 JPEG 배경색으로 파싱하는지 확인
     - 잘못된 색상 입력을 거부하고, 흰색/검정/직접 입력 선택지 매핑을 검증
 
+### 🖥️ 대화형 CLI PTY 통합 테스트 (`tests/interactive_cli.rs`)
+
+45. **`interactive_default_single_file_flow_converts_to_webp`**
+    - 인자 없이 실행한 실제 바이너리를 `rexpect` PTY 세션에서 조작
+    - 기본 선택지 흐름(이미지 1개 변환 → WebP → 웹 권장 품질 → 리사이즈 안 함 → 기본 출력 경로)으로 PNG 를 WebP 로 변환하는지 확인
+    - 출력 파일 생성과 WebP 시그니처(`RIFF` / `WEBP`)를 검증
+    - `rexpect` 는 PTY 출력을 byte 단위 문자로 읽기 때문에 테스트 안에서 한국어 프롬프트 기대 문자열을 같은 방식으로 변환해 매칭
+
 ## 테스트 매크로
 
 ### `test_description!`
@@ -361,7 +371,7 @@ fn test_new_feature() {
 
 ## 테스트 커버리지
 
-현재 테스트는 다음 영역을 커버합니다 (총 72개):
+현재 테스트는 다음 영역을 커버합니다 (총 73개):
 - ✅ 파일 크기 포맷팅
 - ✅ 출력 요약 라벨 (PNG 무손실 / 손실 포맷 품질 표시)
 - ✅ 출력 포맷별 허용 확장자 매칭
@@ -384,10 +394,11 @@ fn test_new_feature() {
 - ✅ JPG/JPEG 단일 입력 (jpeg→webp, jpeg→png, .jpg 확장자 별칭)
 - ✅ CLI 인자 파서 (`--quality` 1.0~100.0 범위, `--threads` ≥ 1 검증, 출력 포맷 허용값 검증, 대화형 기본 실행, 비대화형 필수 인자 검증)
 - ✅ 대화형 모드 검증 클로저 + 디폴트 출력 경로 빌더 (순수 함수로 분리하여 단위 테스트)
+- ✅ 대화형 CLI PTY 통합 테스트 (인자 없는 실행의 단일 파일 기본 변환 흐름)
 
 향후 추가할 수 있는 테스트:
 - 10-bit AVIF 입력 디코딩 (`image` 0.25 업그레이드 후)
 - 일괄 변환 중 일부 파일이 손상되어 실패할 때의 동작
 - 대용량 이미지 처리
 - 메모리 사용량 테스트
-- 대화형 모드 통합 테스트 (`dialoguer::Select` 는 PTY 필요 — `rexpect` 등 도입 필요)
+- 대화형 모드 추가 PTY 시나리오 (배치 모드, JPEG 배경색 직접 입력, 리사이즈 적용)

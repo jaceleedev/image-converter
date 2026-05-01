@@ -12,6 +12,16 @@
 
 ## 최근 작업 로그
 
+### 2026-05-01 — 대화형 CLI PTY 통합 테스트 추가
+
+- `rexpect = "0.7.0"` 을 Unix 전용 dev-dependency 로 추가
+- 루트 `tests/interactive_cli.rs` 추가
+  - `CARGO_BIN_EXE_image_converter` 로 실제 바이너리를 인자 없이 실행
+  - `dialoguer` 대화형 프롬프트를 PTY 에서 조작해 단일 파일 기본 흐름을 검증
+  - PNG 입력을 기본 선택지(WebP, 품질 90, 리사이즈 없음, 기본 출력 경로)로 변환하고 WebP 시그니처 확인
+- `rexpect` 가 PTY 출력을 byte 단위 문자로 읽어서 한국어 프롬프트가 그대로 매칭되지 않는 문제는 테스트 헬퍼 `pty_text()` 로 기대 문자열을 같은 방식으로 변환해 해결
+- docs/architecture.md / docs/testing.md 갱신
+
 ### 2026-05-01 — 2.5.0 릴리즈 준비
 
 - `Cargo.toml` 패키지 버전을 `2.5.0` 으로 올림
@@ -358,7 +368,8 @@
 - **bin/lib 중복 컴파일 제거** — `main.rs` 가 `mod converter;` 등으로 모듈을 직접 포함하면 lib 과 bin 양쪽에서 같은 코드가 컴파일되고 `convert_image_silent` 가 bin 측에서 dead_code 경고. `main.rs` 를 `image_converter::*` 로 import 하도록 변경하여 해결.
 - **CLI 인자 검증은 사용자 정의 파서로 통일** — clap v4 의 `clap::value_parser!().range(..)` 는 정수 (`u16`/`usize` 등) 만 직접 지원하고 `f32`/`f64` 는 안 됨. quality (float) 와 threads (usize) 두 인자가 있어서 한쪽만 빌트인 range 를 쓰면 일관성이 깨지므로, 양쪽 다 `fn parse_quality(&str) -> Result<f32, String>` / `fn parse_threads(&str) -> Result<usize, String>` 사용자 정의 파서로 통일. 부수 효과로 한국어 에러 메시지 (`"품질은 1.0~100.0 범위여야 합니다"`) 를 직접 작성 가능 — clap 의 영어 wrapper (`"invalid value '0' for ..."`) 안에 우리 사유가 그대로 노출됨.
 - **음수 인자 (`-q -10`) 는 clap 한계로 별도 워크어라운드 안 함** — clap 은 `-` 시작 토큰을 short option 으로 해석해서 `-1` 이 unknown flag 로 거부됨. `allow_negative_numbers` attribute 를 켜면 우회 가능하지만 사용자가 음수 quality 를 의도적으로 넣는 경우는 거의 없고, `--quality=-10` / `-q 0.5` 형태로는 우리 검증이 정상 차단하므로 단순함을 위해 보류.
-- **대화형 모드 검증은 dialoguer 모킹 대신 순수 함수 분리로 단위 테스트** — `dialoguer::Select` 는 raw TTY 모드라 stdin pipe 시뮬레이션이 안 됨. PTY 도구 (`rexpect` 등) 도입은 환경 의존성이 커서 flaky 위험. 대신 `validate_with` 클로저와 디폴트 경로 빌더처럼 **검증 가치가 큰 순수 로직만 함수로 분리**하면 dialoguer 한 줄도 안 건드리고 단위 테스트 가능. 흐름 자체의 통합 테스트는 비용 대비 가치가 낮아 보류.
+- **대화형 모드 검증은 먼저 순수 함수 단위 테스트로 분리** — `dialoguer::Select` 는 raw TTY 모드라 stdin pipe 시뮬레이션이 안 됨. PTY 도구 (`rexpect` 등) 도입은 환경 의존성이 커서 처음에는 `validate_with` 클로저와 디폴트 경로 빌더처럼 **검증 가치가 큰 순수 로직만 함수로 분리**했다. 이후 실제 바이너리 smoke test 는 별도 PTY 통합 테스트로 보강.
+- **대화형 통합 테스트는 PTY smoke test 로 최소화** — raw TTY 가 필요한 `dialoguer` 흐름은 `rexpect` 로 실제 바이너리를 실행해 검증한다. 다만 PTY 테스트는 일반 단위 테스트보다 느리고 환경 의존성이 있으므로, 우선 인자 없는 실행의 단일 파일 기본 변환 흐름 하나만 smoke test 로 둔다.
 - **대화형 모드 스레드 수 질문은 한 단계 (`allow_empty=true`) 패턴** — 이전 결정 ("대화형 모드는 스레드 수 질문 안 함") 을 부분 뒤집음. `Confirm` (예/아니오) + `Input` (값) 두 단계로 나누면 친절하지만 늘어짐. 한 단계 (`Input::allow_empty(true)`) 로 통합: 빈 입력 = `None` (모든 코어), 숫자 = `Some(n)`. 사용자 친화 + 단계 수 최소.
 - **기존 출력 파일은 덮어쓰지 않음** — 단일 변환은 `OutputExists` 에러로 중단, 일괄 변환은 해당 파일만 `skipped` 로 집계. 출력 쓰기는 `create_new(true)` 로 처리해 변환 도중 같은 출력 경로가 생겨도 덮어쓰지 않음.
 - **인자 없는 실행은 대화형 모드** — 이 프로젝트의 기본 UX 는 사용자가 변환 의도를 단계적으로 선택하는 흐름. CLI 플래그는 자동화/반복 작업용 보조 수단으로 유지하고, 포맷 추론 같은 추가 규칙은 넣지 않음.
@@ -385,10 +396,11 @@
 - [x] **대화형 리사이즈 옵션** — 완료. 최대 가로 크기 기반 비율 유지 축소를 단일/일괄 변환에 적용. 원본보다 작을 때만 축소하고 확대하지 않음. 66 테스트 통과.
 - [x] **JPEG 배경색 옵션** — 완료. 대화형 JPEG 출력에서 투명 영역 배경색을 선택하고, 인코딩 전 알파 합성을 적용. 72 테스트 통과.
 - [x] **2.5.0 릴리즈 준비** — 완료. 버전 bump + 릴리즈 노트 추가.
+- [x] **대화형 모드 통합 테스트** — 완료. `rexpect` PTY 테스트로 인자 없는 단일 파일 기본 변환 흐름을 검증.
 - [ ] **`image` 0.25 업그레이드** — 10-bit AVIF 디코딩 지원. breaking change 가 있어 별도 작업. 업그레이드 후 ravif 의 8-bit 강제도 풀어줄 수 있음
 - [ ] **PDF 입력** — 첫 페이지만 렌더링할지, 페이지 범위를 여러 파일로 내보낼지, 기본 DPI를 어떻게 둘지 먼저 정해야 하는 별도 기능.
 - [ ] **HEIC 입력** — `libheif` 시스템 의존성 + `libheif-rs` 등 외부 크레이트. 부담 큼.
-- [ ] **대화형 모드 통합 테스트** — `dialoguer::Select` 가 PTY 필요해서 `rexpect` 등 도입 부담. 우선순위 낮음 (위 리팩토링으로 검증/경로 로직은 단위 테스트로 커버됨).
+- [ ] **대화형 모드 추가 PTY 시나리오** — 배치 모드, JPEG 배경색 직접 입력, 리사이즈 적용 흐름은 필요 시 추가.
 
 ## 환경 메모
 
