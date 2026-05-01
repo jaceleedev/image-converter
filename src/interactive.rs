@@ -43,7 +43,25 @@ fn default_output_path_for_file(input: &Path, format: OutputFormat) -> String {
         .file_stem()
         .and_then(|s| s.to_str())
         .unwrap_or("output");
-    format!("{}_converted.{}", stem, format.as_str())
+    let extension = format.as_str();
+    let natural = input.with_file_name(format!("{stem}.{extension}"));
+    if !natural.exists() {
+        return natural.display().to_string();
+    }
+
+    let converted = input.with_file_name(format!("{stem}_converted.{extension}"));
+    if !converted.exists() {
+        return converted.display().to_string();
+    }
+
+    for index in 2.. {
+        let numbered = input.with_file_name(format!("{stem}_converted_{index}.{extension}"));
+        if !numbered.exists() {
+            return numbered.display().to_string();
+        }
+    }
+
+    unreachable!("무한한 번호 후보 중 하나는 반드시 사용 가능해야 합니다")
 }
 
 fn default_output_path_for_dir(input: &Path, format: OutputFormat) -> String {
@@ -284,20 +302,73 @@ mod tests {
     }
 
     #[test]
-    fn default_output_path_for_file_uses_stem() {
-        let path = Path::new("/tmp/photo.png");
+    fn default_output_path_for_file_uses_natural_extension_swap() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("photo.png");
+        fs::write(&path, "x").unwrap();
+
         assert_eq!(
-            default_output_path_for_file(path, OutputFormat::Webp),
-            "photo_converted.webp"
+            default_output_path_for_file(&path, OutputFormat::Webp),
+            dir.path().join("photo.webp").display().to_string()
+        );
+    }
+
+    #[test]
+    fn default_output_path_for_file_keeps_input_directory() {
+        let dir = TempDir::new().unwrap();
+        let asset_dir = dir.path().join("assets");
+        fs::create_dir(&asset_dir).unwrap();
+        let path = asset_dir.join("photo.png");
+        fs::write(&path, "x").unwrap();
+
+        assert_eq!(
+            default_output_path_for_file(&path, OutputFormat::Avif),
+            asset_dir.join("photo.avif").display().to_string()
+        );
+    }
+
+    #[test]
+    fn default_output_path_for_file_uses_converted_when_target_exists() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("photo.png");
+        fs::write(&path, "x").unwrap();
+        fs::write(dir.path().join("photo.webp"), "x").unwrap();
+
+        assert_eq!(
+            default_output_path_for_file(&path, OutputFormat::Webp),
+            dir.path()
+                .join("photo_converted.webp")
+                .display()
+                .to_string()
+        );
+    }
+
+    #[test]
+    fn default_output_path_for_file_numbers_repeated_collisions() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("photo.png");
+        fs::write(&path, "x").unwrap();
+        fs::write(dir.path().join("photo.webp"), "x").unwrap();
+        fs::write(dir.path().join("photo_converted.webp"), "x").unwrap();
+
+        assert_eq!(
+            default_output_path_for_file(&path, OutputFormat::Webp),
+            dir.path()
+                .join("photo_converted_2.webp")
+                .display()
+                .to_string()
         );
     }
 
     #[test]
     fn default_output_path_for_file_handles_no_extension() {
-        let path = Path::new("/tmp/no_ext");
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("no_ext");
+        fs::write(&path, "x").unwrap();
+
         assert_eq!(
-            default_output_path_for_file(path, OutputFormat::Png),
-            "no_ext_converted.png"
+            default_output_path_for_file(&path, OutputFormat::Png),
+            dir.path().join("no_ext.png").display().to_string()
         );
     }
 

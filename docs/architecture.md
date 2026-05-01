@@ -90,6 +90,7 @@ image_converter/
 - 디렉토리 모드에서 재귀 옵션 질문 + 스레드 수 질문 (빈 입력 = `None` = rayon default)
 - 출력 포맷 선택지: WebP / AVIF / PNG / JPEG
 - PNG 출력 선택 시 quality 단계는 자동으로 스킵 (무손실 포맷이라 의미 없음)
+- 단일 파일 기본 출력 경로는 입력 파일과 같은 디렉토리에서 확장자만 바꾼 경로를 우선 제안하고, 이미 있으면 `_converted`, `_converted_2` 순서로 충돌 회피
 - 단일 파일 출력 경로 입력 단계에서 선택 포맷과 확장자 불일치를 검증해 재입력 유도
 - 검증 클로저와 디폴트 출력 경로 빌더는 순수 함수로 분리 (`validate_input_path`, `validate_quality_input`, `validate_threads_input`, `validate_output_file_path`, `default_output_path_for_file`, `default_output_path_for_dir`) — `#[cfg(test)] mod tests` 에서 단위 테스트
 - 단계별 사용자 입력 처리
