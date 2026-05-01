@@ -72,15 +72,35 @@ fn default_output_path_for_dir(input: &Path, format: OutputFormat) -> String {
     format!("{}_converted_{}", dir_name, format.as_str())
 }
 
+fn quality_options() -> [&'static str; 5] {
+    [
+        "웹 권장 (90%)",
+        "균형 (80%)",
+        "작게 저장 (70%)",
+        "원본에 가깝게 (100%)",
+        "직접 입력",
+    ]
+}
+
+fn quality_for_selection(selection: usize) -> Option<f32> {
+    match selection {
+        0 => Some(90.0),
+        1 => Some(80.0),
+        2 => Some(70.0),
+        3 => Some(100.0),
+        _ => None,
+    }
+}
+
 /// 대화형 모드로 이미지 변환
 pub fn interactive_mode() -> crate::error::Result<()> {
     println!("{}", "🖼️  이미지 변환기 - 대화형 모드".bright_cyan().bold());
     println!("{}", "================================".bright_cyan());
 
     // 모드 선택
-    let modes = vec!["단일 파일 변환", "디렉토리 일괄 변환"];
+    let modes = vec!["이미지 1개 변환", "폴더 전체 변환"];
     let mode_selection = Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("변환 모드를 선택하세요")
+        .with_prompt("무엇을 변환할까요?")
         .items(&modes)
         .default(0)
         .interact()?;
@@ -90,9 +110,9 @@ pub fn interactive_mode() -> crate::error::Result<()> {
     // 입력 경로 입력 (모드에 따라 검증 로직 다름)
     let input_path: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt(if is_batch {
-            "변환할 디렉토리 경로를 입력하세요"
+            "이미지가 들어 있는 폴더 경로"
         } else {
-            "변환할 이미지 파일 경로를 입력하세요"
+            "변환할 이미지 파일 경로"
         })
         .validate_with(|input: &String| validate_input_path(input, is_batch))
         .interact_text()?;
@@ -100,7 +120,7 @@ pub fn interactive_mode() -> crate::error::Result<()> {
     // 재귀 옵션 (배치 모드만)
     let recursive = if is_batch {
         Confirm::with_theme(&ColorfulTheme::default())
-            .with_prompt("하위 폴더까지 재귀적으로 변환할까요?")
+            .with_prompt("하위 폴더까지 포함할까요?")
             .default(false)
             .interact()?
     } else {
@@ -109,14 +129,14 @@ pub fn interactive_mode() -> crate::error::Result<()> {
 
     // 출력 형식 선택
     let formats = [
-        ("WebP", OutputFormat::Webp),
-        ("AVIF", OutputFormat::Avif),
-        ("PNG", OutputFormat::Png),
-        ("JPEG", OutputFormat::Jpeg),
+        ("WebP - 웹 권장", OutputFormat::Webp),
+        ("AVIF - 더 작은 용량", OutputFormat::Avif),
+        ("PNG - 무손실", OutputFormat::Png),
+        ("JPEG - 사진 호환성", OutputFormat::Jpeg),
     ];
     let format_labels: Vec<&str> = formats.iter().map(|(label, _)| *label).collect();
     let format_selection = Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("출력 형식을 선택하세요")
+        .with_prompt("어떤 형식으로 저장할까요?")
         .items(&format_labels)
         .default(0)
         .interact()?;
@@ -126,31 +146,22 @@ pub fn interactive_mode() -> crate::error::Result<()> {
     // 품질 선택 — PNG 는 무손실이라 의미 없으므로 스킵
     let quality = if format.is_png() {
         println!(
-            "  {} PNG 는 무손실 포맷이라 품질 설정이 적용되지 않습니다.",
+            "  {} PNG 는 무손실 포맷이라 품질 단계를 건너뜁니다.",
             "ℹ️".bright_blue()
         );
         100.0
     } else {
-        let quality_options = vec![
-            "최고 품질 (100%)",
-            "높음 (90%)",
-            "보통 (80%)",
-            "낮음 (70%)",
-            "사용자 지정",
-        ];
+        let quality_options = quality_options();
         let quality_selection = Select::with_theme(&ColorfulTheme::default())
-            .with_prompt("변환 품질을 선택하세요")
+            .with_prompt("품질을 선택하세요")
             .items(&quality_options)
-            .default(1)
+            .default(0)
             .interact()?;
 
-        match quality_selection {
-            0 => 100.0,
-            1 => 90.0,
-            2 => 80.0,
-            3 => 70.0,
-            _ => Input::with_theme(&ColorfulTheme::default())
-                .with_prompt("품질 값을 입력하세요 (1-100)")
+        match quality_for_selection(quality_selection) {
+            Some(quality) => quality,
+            None => Input::with_theme(&ColorfulTheme::default())
+                .with_prompt("품질 값 (1-100)")
                 .validate_with(|input: &String| validate_quality_input(input))
                 .interact_text()?
                 .parse::<f32>()?,
@@ -160,7 +171,7 @@ pub fn interactive_mode() -> crate::error::Result<()> {
     // 스레드 수 (배치 모드만, 빈 입력은 None = rayon default)
     let threads: Option<usize> = if is_batch {
         let raw: String = Input::with_theme(&ColorfulTheme::default())
-            .with_prompt("스레드 수 (1 이상, 비워두면 모든 코어 사용)")
+            .with_prompt("동시 변환 스레드 수 (비워두면 자동)")
             .allow_empty(true)
             .validate_with(|input: &String| -> Result<(), &'static str> {
                 if input.trim().is_empty() {
@@ -185,7 +196,7 @@ pub fn interactive_mode() -> crate::error::Result<()> {
         let default_output = default_output_path_for_dir(&input_path_buf, format);
 
         let output_path: String = Input::with_theme(&ColorfulTheme::default())
-            .with_prompt("출력 디렉토리 경로를 입력하세요")
+            .with_prompt("저장할 폴더 경로")
             .default(default_output)
             .interact_text()?;
 
@@ -201,7 +212,7 @@ pub fn interactive_mode() -> crate::error::Result<()> {
         let default_output = default_output_path_for_file(&input_path_buf, format);
 
         let output_path: String = Input::with_theme(&ColorfulTheme::default())
-            .with_prompt("출력 파일 경로를 입력하세요")
+            .with_prompt("저장할 파일 경로")
             .default(default_output)
             .validate_with(|input: &String| validate_output_file_path(input, format))
             .interact_text()?;
@@ -263,6 +274,22 @@ mod tests {
         assert!(validate_quality_input("100.01").is_err());
         assert!(validate_quality_input("-10").is_err());
         assert!(validate_quality_input("abc").is_err());
+    }
+
+    #[test]
+    fn quality_options_put_web_recommended_first() {
+        let options = quality_options();
+        assert_eq!(options[0], "웹 권장 (90%)");
+        assert_eq!(options[4], "직접 입력");
+    }
+
+    #[test]
+    fn quality_for_selection_maps_presets() {
+        assert_eq!(quality_for_selection(0), Some(90.0));
+        assert_eq!(quality_for_selection(1), Some(80.0));
+        assert_eq!(quality_for_selection(2), Some(70.0));
+        assert_eq!(quality_for_selection(3), Some(100.0));
+        assert_eq!(quality_for_selection(4), None);
     }
 
     #[test]
