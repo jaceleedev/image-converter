@@ -49,7 +49,7 @@ image_converter/
 - `ConverterError` enum + `Result<T>` 별칭
 - thiserror 기반, 외부 크레이트 에러(io, image, dialoguer, ravif, ParseFloat, rayon) 는 `#[from]` 으로 자동 변환
 - WebP 인코더의 `&str` 에러는 별도 `Webp(String)` variant 로 매핑 (소유권 확보)
-- 사용자 입력성 에러는 `UnsupportedFormat`, `InvalidPath`, `OutputExists` 등 컨텍스트가 담긴 variant
+- 사용자 입력성 에러는 `UnsupportedFormat`, `InvalidPath`, `OutputExists`, `OutputExtensionMismatch` 등 컨텍스트가 담긴 variant
 - Display 메시지는 모두 한국어 (`"입출력 오류: ..."`, `"지원하지 않는 포맷입니다: xyz"` 등)
 
 ### `format.rs` (출력 포맷 타입)
@@ -58,6 +58,7 @@ image_converter/
 - `clap::ValueEnum` 기반 CLI 허용값 검증
 - `FromStr` 기반 내부/테스트용 파싱
 - 확장자 문자열(`as_str`) 과 표시명(`display_name`) 헬퍼 제공
+- 출력 경로 검증용 허용 확장자 헬퍼 제공 (`.jpg`/`.jpeg` 는 JPEG 포맷에서 모두 허용)
 
 ### `converter.rs` (단일 변환 비즈니스 로직)
 
@@ -69,6 +70,7 @@ image_converter/
 - `convert_image`: 진행률 + 결과 출력 포함
 - `convert_image_silent`: 출력 없는 변환 (`ConvertStats` 반환). 배치 모드와 테스트에서 사용
 - 두 함수 모두 동일한 내부 인코딩 헬퍼를 호출 (코드 중복 제거)
+- 단일 변환은 출력 파일 확장자가 선택 포맷과 다르면 인코딩 전에 `OutputExtensionMismatch` 로 중단
 - 출력 파일은 `create_new` 방식으로 생성하여 기존 파일을 덮어쓰지 않음. 이미 있으면 `OutputExists` 에러 반환
 
 ### `batch.rs` (디렉토리 일괄 변환)
@@ -88,7 +90,8 @@ image_converter/
 - 디렉토리 모드에서 재귀 옵션 질문 + 스레드 수 질문 (빈 입력 = `None` = rayon default)
 - 출력 포맷 선택지: WebP / AVIF / PNG / JPEG
 - PNG 출력 선택 시 quality 단계는 자동으로 스킵 (무손실 포맷이라 의미 없음)
-- 검증 클로저와 디폴트 출력 경로 빌더는 순수 함수로 분리 (`validate_input_path`, `validate_quality_input`, `validate_threads_input`, `default_output_path_for_file`, `default_output_path_for_dir`) — `#[cfg(test)] mod tests` 에서 단위 테스트
+- 단일 파일 출력 경로 입력 단계에서 선택 포맷과 확장자 불일치를 검증해 재입력 유도
+- 검증 클로저와 디폴트 출력 경로 빌더는 순수 함수로 분리 (`validate_input_path`, `validate_quality_input`, `validate_threads_input`, `validate_output_file_path`, `default_output_path_for_file`, `default_output_path_for_dir`) — `#[cfg(test)] mod tests` 에서 단위 테스트
 - 단계별 사용자 입력 처리
 
 ### `utils.rs` (공통 유틸리티)

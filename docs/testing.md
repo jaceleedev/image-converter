@@ -117,6 +117,10 @@ cargo test --release
    - 손실 포맷(WebP/JPEG/AVIF)은 품질 값을 표시하는지 확인
    - PNG 는 품질 값 대신 "무손실" 로 표시하는지 확인
 
+4. **`test_output_format_extension_matching`**
+   - 출력 포맷별 허용 확장자 매칭 규칙 확인
+   - JPEG 포맷은 `.jpg` 와 `.jpeg` 를 모두 허용하고, 대소문자를 무시하는지 검증
+
 ### 🔄 통합 테스트 (Integration Tests)
 
 4. **`test_webp_conversion`**
@@ -166,6 +170,10 @@ cargo test --release
 15. **`test_single_conversion_rejects_existing_output`**
     - 단일 변환에서 출력 파일이 이미 있으면 `OutputExists` 에러를 반환하는지 확인
     - 기존 출력 파일 내용이 보존되는지 검증
+
+16. **`test_single_conversion_rejects_mismatched_output_extension`**
+    - 단일 변환에서 선택 포맷과 출력 파일 확장자가 다르면 `OutputExtensionMismatch` 에러를 반환하는지 확인
+    - 확장자가 맞지 않을 때 출력 파일을 만들지 않는지 검증
 
 ### 🔁 다중 포맷 입출력 테스트
 
@@ -251,10 +259,14 @@ cargo test --release
 38. **`validate_threads_input_*`** (2개)
     - 1, 16 통과, 0 / -1 / `"abc"` / 빈 입력 거부
 
-39. **`default_output_path_for_file_*`** (2개)
+39. **`validate_output_file_path_*`** (3개)
+    - 선택 포맷과 출력 파일 확장자가 일치하는지 검증
+    - JPEG 는 `.jpg`/`.jpeg` 별칭을 모두 허용하고, 불일치/확장자 없음은 거부
+
+40. **`default_output_path_for_file_*`** (2개)
     - `{stem}_converted.{format}` 패턴 (예: `photo.png` + webp → `photo_converted.webp`), 확장자 없는 입력 (`no_ext` + png → `no_ext_converted.png`) 처리
 
-40. **`default_output_path_for_dir_*`** (2개)
+41. **`default_output_path_for_dir_*`** (2개)
     - `{dirname}_converted_{format}` 패턴 (예: `photos` + webp → `photos_converted_webp`), trailing slash (`/tmp/photos/`) 정상 처리
 
 ## 테스트 매크로
@@ -315,13 +327,15 @@ fn test_new_feature() {
 
 ## 테스트 커버리지
 
-현재 테스트는 다음 영역을 커버합니다 (총 51개):
+현재 테스트는 다음 영역을 커버합니다 (총 56개):
 - ✅ 파일 크기 포맷팅
 - ✅ 출력 요약 라벨 (PNG 무손실 / 손실 포맷 품질 표시)
+- ✅ 출력 포맷별 허용 확장자 매칭
 - ✅ WebP / AVIF 단일 변환
 - ✅ 품질 파라미터 검증
 - ✅ 디렉토리 일괄 변환 (재귀 / 비재귀)
 - ✅ 출력 덮어쓰기 방지 (단일 변환 에러 / 일괄 변환 건너뜀)
+- ✅ 출력 확장자 불일치 방지 (단일 변환 에러 / 대화형 입력 검증)
 - ✅ 비이미지 파일 자동 스킵
 - ✅ 빈 디렉토리 처리
 - ✅ 에러 처리 (지원하지 않는 형식, 존재하지 않는 파일, 기존 출력 파일)

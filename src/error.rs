@@ -24,6 +24,15 @@ pub enum ConverterError {
     #[error("출력 경로가 이미 존재합니다: {0}")]
     OutputExists(String),
 
+    #[error(
+        "출력 확장자가 선택한 포맷과 다릅니다: {output_path} (현재: {actual}, 허용: {expected})"
+    )]
+    OutputExtensionMismatch {
+        output_path: String,
+        actual: String,
+        expected: String,
+    },
+
     #[error("대화형 입력 오류: {0}")]
     Dialog(#[from] dialoguer::Error),
 

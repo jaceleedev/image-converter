@@ -191,6 +191,37 @@ fn test_single_conversion_rejects_existing_output() -> Result<(), Box<dyn std::e
 }
 
 #[test]
+fn test_single_conversion_rejects_mismatched_output_extension(
+) -> Result<(), Box<dyn std::error::Error>> {
+    test_description!("단일 변환 출력 확장자 불일치 방지 테스트");
+    test_step!("선택 포맷과 출력 파일 확장자가 다르면 변환을 시작하지 않는지 확인");
+
+    let temp_dir = TempDir::new()?;
+    let input_path = temp_dir.path().join("input.png");
+    let output_path = temp_dir.path().join("output.jpg");
+    create_test_image(input_path.to_str().unwrap(), 40, 40)?;
+
+    let result = convert_image_silent(
+        input_path.to_str().unwrap(),
+        output_path.to_str().unwrap(),
+        OutputFormat::Webp,
+        90.0,
+    );
+
+    assert!(
+        matches!(result, Err(ConverterError::OutputExtensionMismatch { .. })),
+        "확장자 불일치는 OutputExtensionMismatch 에러를 반환해야 함"
+    );
+    assert!(
+        !output_path.exists(),
+        "확장자가 맞지 않으면 출력 파일을 만들면 안 됨"
+    );
+    test_success!("출력 확장자 불일치 차단 확인");
+
+    Ok(())
+}
+
+#[test]
 fn test_batch_directory_conversion() -> Result<(), Box<dyn std::error::Error>> {
     test_description!("디렉토리 일괄 변환 테스트");
     test_step!("여러 PNG 파일이 모두 WebP로 변환되는지 확인");

@@ -73,3 +73,18 @@ fn test_format_quality_label_for_png() {
 
     test_success!("PNG 무손실 라벨 확인");
 }
+
+#[test]
+fn test_output_format_extension_matching() {
+    test_description!("출력 포맷별 허용 확장자 테스트");
+    test_step!("선택한 포맷과 출력 확장자의 매칭 규칙을 확인");
+
+    assert!(OutputFormat::Webp.matches_extension("webp"));
+    assert!(OutputFormat::Avif.matches_extension("AVIF"));
+    assert!(OutputFormat::Png.matches_extension("png"));
+    assert!(OutputFormat::Jpeg.matches_extension("jpg"));
+    assert!(OutputFormat::Jpg.matches_extension("jpeg"));
+    assert!(!OutputFormat::Webp.matches_extension("jpg"));
+
+    test_success!("포맷별 확장자 매칭 규칙 확인");
+}
