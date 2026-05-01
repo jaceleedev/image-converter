@@ -19,6 +19,12 @@ pub struct BatchSummary {
     pub total_output_size: u64,
 }
 
+enum ProcessOutcome {
+    Converted(ConvertStats),
+    Skipped,
+    Failed,
+}
+
 /// 입력 파일이 지원하는 이미지 확장자인지 확인
 fn is_supported_image(path: &Path) -> bool {
     matches!(
@@ -149,13 +155,13 @@ pub fn convert_directory(
 
     // 병렬 변환 — ProgressBar/println 은 indicatif 내부 Mutex 로 thread-safe
     // `threads` 가 지정되면 local pool 을 만들어 scoped 실행, 아니면 rayon 전역 풀 사용
-    let run_par = |files: &[PathBuf]| -> Vec<Option<ConvertStats>> {
+    let run_par = |files: &[PathBuf]| -> Vec<ProcessOutcome> {
         files
             .par_iter()
             .map(|file| process_one(file, input_path, output_path, format, quality, &pb))
             .collect()
     };
-    let outcomes: Vec<Option<ConvertStats>> = match threads {
+    let outcomes: Vec<ProcessOutcome> = match threads {
         Some(n) => {
             let pool = rayon::ThreadPoolBuilder::new().num_threads(n).build()?;
             pool.install(|| run_par(&files))
@@ -166,12 +172,13 @@ pub fn convert_directory(
     // 결과 직렬 합산
     for outcome in outcomes {
         match outcome {
-            Some(stats) => {
+            ProcessOutcome::Converted(stats) => {
                 summary.succeeded += 1;
                 summary.total_input_size += stats.input_size;
                 summary.total_output_size += stats.output_size;
             }
-            None => summary.failed += 1,
+            ProcessOutcome::Skipped => summary.skipped += 1,
+            ProcessOutcome::Failed => summary.failed += 1,
         }
     }
 
@@ -188,7 +195,7 @@ fn process_one(
     format: OutputFormat,
     quality: f32,
     pb: &ProgressBar,
-) -> Option<ConvertStats> {
+) -> ProcessOutcome {
     let display = file
         .file_name()
         .and_then(|n| n.to_str())
@@ -205,8 +212,19 @@ fn process_one(
                 e
             ));
             pb.inc(1);
-            return None;
+            return ProcessOutcome::Failed;
         }
+    }
+
+    if dest.exists() {
+        pb.println(format!(
+            "  {} {}: 출력 경로가 이미 있어 건너뜀 ({})",
+            "⏭️".bright_yellow(),
+            display,
+            dest.display()
+        ));
+        pb.inc(1);
+        return ProcessOutcome::Skipped;
     }
 
     let in_str = match file.to_str() {
@@ -218,7 +236,7 @@ fn process_one(
                 display
             ));
             pb.inc(1);
-            return None;
+            return ProcessOutcome::Failed;
         }
     };
     let out_str = match dest.to_str() {
@@ -230,15 +248,24 @@ fn process_one(
                 display
             ));
             pb.inc(1);
-            return None;
+            return ProcessOutcome::Failed;
         }
     };
 
     let result = match convert_image_silent(in_str, out_str, format, quality) {
-        Ok(stats) => Some(stats),
+        Ok(stats) => ProcessOutcome::Converted(stats),
+        Err(ConverterError::OutputExists(_)) => {
+            pb.println(format!(
+                "  {} {}: 출력 경로가 이미 있어 건너뜀 ({})",
+                "⏭️".bright_yellow(),
+                display,
+                dest.display()
+            ));
+            ProcessOutcome::Skipped
+        }
         Err(e) => {
             pb.println(format!("  {} {}: {}", "❌".bright_red(), display, e));
-            None
+            ProcessOutcome::Failed
         }
     };
     pb.inc(1);
@@ -253,9 +280,11 @@ fn print_batch_summary(summary: &BatchSummary, format: OutputFormat, quality: f3
         summary.total_files.to_string().bright_yellow()
     );
     println!(
-        "  {} 성공: {}개  {} 실패: {}개",
+        "  {} 성공: {}개  {} 건너뜀: {}개  {} 실패: {}개",
         "✅".bright_green(),
         summary.succeeded.to_string().bright_green(),
+        "⏭️".bright_yellow(),
+        summary.skipped.to_string().bright_yellow(),
         "❌".bright_red(),
         summary.failed.to_string().bright_red()
     );
