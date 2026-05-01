@@ -88,8 +88,9 @@ image_converter/
 - 대화형 모드 구현
 - 단일 파일 / 디렉토리 모드 선택
 - 디렉토리 모드에서 재귀 옵션 질문 + 스레드 수 질문 (빈 입력 = `None` = rayon default)
-- 출력 포맷 선택지: WebP / AVIF / PNG / JPEG
-- PNG 출력 선택 시 quality 단계는 자동으로 스킵 (무손실 포맷이라 의미 없음)
+- 출력 포맷 선택지: WebP 웹 권장 / AVIF 작은 용량 / PNG 무손실 / JPEG 사진 호환성
+- 손실 포맷 품질 프리셋은 웹 권장(90%) 을 기본값으로 두고, 균형(80%) / 작게 저장(70%) / 원본에 가깝게(100%) / 직접 입력을 제공
+- PNG 출력 선택 시 품질 단계는 자동으로 스킵 (무손실 포맷이라 의미 없음)
 - 단일 파일 기본 출력 경로는 입력 파일과 같은 디렉토리에서 확장자만 바꾼 경로를 우선 제안하고, 이미 있으면 `_converted`, `_converted_2` 순서로 충돌 회피
 - 단일 파일 출력 경로 입력 단계에서 선택 포맷과 확장자 불일치를 검증해 재입력 유도
 - 검증 클로저와 디폴트 출력 경로 빌더는 순수 함수로 분리 (`validate_input_path`, `validate_quality_input`, `validate_threads_input`, `validate_output_file_path`, `default_output_path_for_file`, `default_output_path_for_dir`) — `#[cfg(test)] mod tests` 에서 단위 테스트

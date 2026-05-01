@@ -256,19 +256,23 @@ cargo test --release
 37. **`validate_quality_input_*`** (2개)
     - 1.0/50.5/100.0 정상 범위 통과, 0 / 0.99 / 100.01 / -10 / `"abc"` 거부
 
-38. **`validate_threads_input_*`** (2개)
+38. **`quality_options` / `quality_for_selection`** (2개)
+    - 웹 권장(90%) 프리셋이 기본 선택지로 앞에 오는지 확인
+    - 품질 선택지 순서가 실제 품질 값(90/80/70/100/직접 입력)으로 매핑되는지 확인
+
+39. **`validate_threads_input_*`** (2개)
     - 1, 16 통과, 0 / -1 / `"abc"` / 빈 입력 거부
 
-39. **`validate_output_file_path_*`** (3개)
+40. **`validate_output_file_path_*`** (3개)
     - 선택 포맷과 출력 파일 확장자가 일치하는지 검증
     - JPEG 는 `.jpg`/`.jpeg` 별칭을 모두 허용하고, 불일치/확장자 없음은 거부
 
-40. **`default_output_path_for_file_*`** (5개)
+41. **`default_output_path_for_file_*`** (5개)
     - 입력 파일과 같은 디렉토리에서 확장자만 바꾼 기본값 제안 (예: `photo.png` + webp → `photo.webp`)
     - 자연스러운 기본 출력 경로가 이미 있으면 `_converted`, `_converted_2` 순서로 충돌 회피
     - 확장자 없는 입력 (`no_ext` + png → `no_ext.png`) 처리
 
-41. **`default_output_path_for_dir_*`** (2개)
+42. **`default_output_path_for_dir_*`** (2개)
     - `{dirname}_converted_{format}` 패턴 (예: `photos` + webp → `photos_converted_webp`), trailing slash (`/tmp/photos/`) 정상 처리
 
 ## 테스트 매크로
@@ -329,12 +333,13 @@ fn test_new_feature() {
 
 ## 테스트 커버리지
 
-현재 테스트는 다음 영역을 커버합니다 (총 59개):
+현재 테스트는 다음 영역을 커버합니다 (총 61개):
 - ✅ 파일 크기 포맷팅
 - ✅ 출력 요약 라벨 (PNG 무손실 / 손실 포맷 품질 표시)
 - ✅ 출력 포맷별 허용 확장자 매칭
 - ✅ WebP / AVIF 단일 변환
 - ✅ 품질 파라미터 검증
+- ✅ 대화형 품질 프리셋 순서와 값 매핑
 - ✅ 디렉토리 일괄 변환 (재귀 / 비재귀)
 - ✅ 출력 덮어쓰기 방지 (단일 변환 에러 / 일괄 변환 건너뜀)
 - ✅ 출력 확장자 불일치 방지 (단일 변환 에러 / 대화형 입력 검증)
