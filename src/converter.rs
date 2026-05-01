@@ -1,5 +1,5 @@
 use colored::*;
-use image::{DynamicImage, GenericImageView, ImageOutputFormat};
+use image::{imageops::FilterType, DynamicImage, GenericImageView, ImageOutputFormat};
 use indicatif::{ProgressBar, ProgressStyle};
 use ravif::{BitDepth, Encoder as AvifEncoder, Img, RGBA8};
 use std::fs;
@@ -17,6 +17,14 @@ pub struct ConvertStats {
     pub output_size: u64,
     pub width: u32,
     pub height: u32,
+    pub output_width: u32,
+    pub output_height: u32,
+}
+
+/// 변환 전 적용할 이미지 리사이즈 옵션
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ResizeOptions {
+    pub max_width: u32,
 }
 
 /// 메모리에 로드된 이미지를 지정한 포맷으로 인코딩
@@ -59,6 +67,20 @@ fn encode_to(img: &DynamicImage, format: OutputFormat, quality: f32) -> Result<V
             Ok(buf)
         }
     }
+}
+
+fn resize_image(img: DynamicImage, resize: Option<ResizeOptions>) -> DynamicImage {
+    let Some(options) = resize else {
+        return img;
+    };
+    let (width, height) = img.dimensions();
+    if options.max_width == 0 || width <= options.max_width {
+        return img;
+    }
+
+    let ratio = options.max_width as f64 / width as f64;
+    let resized_height = ((height as f64 * ratio).round() as u32).max(1);
+    img.resize_exact(options.max_width, resized_height, FilterType::Lanczos3)
 }
 
 fn ensure_output_available(output_path: &str) -> Result<()> {
@@ -124,11 +146,24 @@ pub fn convert_image_silent(
     format: OutputFormat,
     quality: f32,
 ) -> Result<ConvertStats> {
+    convert_image_silent_with_options(input_path, output_path, format, quality, None)
+}
+
+/// 이미지 변환 (출력 없음). 리사이즈 같은 추가 옵션을 적용할 때 사용
+pub fn convert_image_silent_with_options(
+    input_path: &str,
+    output_path: &str,
+    format: OutputFormat,
+    quality: f32,
+    resize: Option<ResizeOptions>,
+) -> Result<ConvertStats> {
     validate_output_extension(output_path, format)?;
     let input_size = fs::metadata(input_path)?.len();
     ensure_output_available(output_path)?;
     let img = image::open(input_path)?;
     let (width, height) = img.dimensions();
+    let img = resize_image(img, resize);
+    let (output_width, output_height) = img.dimensions();
     let data = encode_to(&img, format, quality)?;
     write_output_file(output_path, &data)?;
     let output_size = fs::metadata(output_path)?.len();
@@ -137,6 +172,8 @@ pub fn convert_image_silent(
         output_size,
         width,
         height,
+        output_width,
+        output_height,
     })
 }
 
@@ -146,6 +183,17 @@ pub fn convert_image(
     output_path: &str,
     format: OutputFormat,
     quality: f32,
+) -> Result<()> {
+    convert_image_with_options(input_path, output_path, format, quality, None)
+}
+
+/// 단일 이미지 변환 (진행률 표시 + 결과 출력). 리사이즈 같은 추가 옵션을 적용할 때 사용
+pub fn convert_image_with_options(
+    input_path: &str,
+    output_path: &str,
+    format: OutputFormat,
+    quality: f32,
+    resize: Option<ResizeOptions>,
 ) -> Result<()> {
     validate_output_extension(output_path, format)?;
 
@@ -168,6 +216,11 @@ pub fn convert_image(
     pb.set_message("이미지 로딩 중...");
     let img = image::open(input_path)?;
     let (width, height) = img.dimensions();
+
+    pb.set_position(35);
+    pb.set_message("크기 조정 중...");
+    let img = resize_image(img, resize);
+    let (output_width, output_height) = img.dimensions();
 
     pb.set_position(40);
     pb.set_message(format!(
@@ -197,6 +250,8 @@ pub fn convert_image(
             output_size,
             width,
             height,
+            output_width,
+            output_height,
         },
         format,
         quality,
@@ -224,10 +279,11 @@ fn print_single_summary(
         stats.height
     );
     println!(
-        "  {} 변환: {} ({})",
+        "  {} 변환: {} ({}{})",
         "💾".bright_green(),
         crate::utils::format_file_size(stats.output_size).bright_green(),
-        quality_label
+        quality_label,
+        format_output_dimensions(stats)
     );
 
     let emoji = pick_reduction_emoji(reduction);
@@ -248,6 +304,14 @@ fn print_single_summary(
         input_path.bright_cyan(),
         output_path.bright_cyan()
     );
+}
+
+fn format_output_dimensions(stats: &ConvertStats) -> String {
+    if stats.width == stats.output_width && stats.height == stats.output_height {
+        String::new()
+    } else {
+        format!(", {}x{} px", stats.output_width, stats.output_height)
+    }
 }
 
 fn pick_reduction_emoji(reduction: f64) -> &'static str {

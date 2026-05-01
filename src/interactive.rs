@@ -2,8 +2,8 @@ use colored::*;
 use dialoguer::{theme::ColorfulTheme, Confirm, Input, Select};
 use std::path::{Path, PathBuf};
 
-use crate::batch::convert_directory;
-use crate::converter::{convert_image, validate_output_extension};
+use crate::batch::convert_directory_with_options;
+use crate::converter::{convert_image_with_options, validate_output_extension, ResizeOptions};
 use crate::format::OutputFormat;
 
 fn validate_input_path(input: &str, is_batch: bool) -> Result<(), &'static str> {
@@ -31,6 +31,13 @@ fn validate_threads_input(input: &str) -> Result<(), &'static str> {
     match input.parse::<usize>() {
         Ok(n) if n >= 1 => Ok(()),
         _ => Err("1 이상의 정수를 입력하세요"),
+    }
+}
+
+fn validate_resize_width_input(input: &str) -> Result<(), &'static str> {
+    match input.parse::<u32>() {
+        Ok(n) if n >= 1 => Ok(()),
+        _ => Err("1 이상의 픽셀 값을 입력하세요"),
     }
 }
 
@@ -168,6 +175,22 @@ pub fn interactive_mode() -> crate::error::Result<()> {
         }
     };
 
+    let resize = if Confirm::with_theme(&ColorfulTheme::default())
+        .with_prompt("가로 크기를 줄일까요?")
+        .default(false)
+        .interact()?
+    {
+        let max_width: String = Input::with_theme(&ColorfulTheme::default())
+            .with_prompt("최대 가로 크기(px, 원본보다 작을 때만 적용)")
+            .validate_with(|input: &String| validate_resize_width_input(input))
+            .interact_text()?;
+        Some(ResizeOptions {
+            max_width: max_width.parse::<u32>().expect("validate 통과"),
+        })
+    } else {
+        None
+    };
+
     // 스레드 수 (배치 모드만, 빈 입력은 None = rayon default)
     let threads: Option<usize> = if is_batch {
         let raw: String = Input::with_theme(&ColorfulTheme::default())
@@ -200,13 +223,14 @@ pub fn interactive_mode() -> crate::error::Result<()> {
             .default(default_output)
             .interact_text()?;
 
-        convert_directory(
+        convert_directory_with_options(
             &input_path,
             &output_path,
             format,
             quality,
             recursive,
             threads,
+            resize,
         )?;
     } else {
         let default_output = default_output_path_for_file(&input_path_buf, format);
@@ -217,7 +241,7 @@ pub fn interactive_mode() -> crate::error::Result<()> {
             .validate_with(|input: &String| validate_output_file_path(input, format))
             .interact_text()?;
 
-        convert_image(&input_path, &output_path, format, quality)?;
+        convert_image_with_options(&input_path, &output_path, format, quality, resize)?;
     }
 
     Ok(())
@@ -304,6 +328,20 @@ mod tests {
         assert!(validate_threads_input("-1").is_err());
         assert!(validate_threads_input("abc").is_err());
         assert!(validate_threads_input("").is_err());
+    }
+
+    #[test]
+    fn validate_resize_width_input_accepts_positive_pixels() {
+        assert!(validate_resize_width_input("1").is_ok());
+        assert!(validate_resize_width_input("1200").is_ok());
+    }
+
+    #[test]
+    fn validate_resize_width_input_rejects_invalid() {
+        assert!(validate_resize_width_input("0").is_err());
+        assert!(validate_resize_width_input("-1").is_err());
+        assert!(validate_resize_width_input("abc").is_err());
+        assert!(validate_resize_width_input("").is_err());
     }
 
     #[test]
