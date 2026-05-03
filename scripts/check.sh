@@ -18,7 +18,7 @@ usage() {
 
 필요 도구:
   기본: docker compose
-  --local: cargo, rustfmt, clippy, nasm, dav1d/pkg-config
+  --local: cargo, rustfmt, clippy, nasm, dav1d, libheif, pkg-config
 USAGE
 }
 

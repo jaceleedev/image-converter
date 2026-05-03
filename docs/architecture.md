@@ -18,6 +18,7 @@ image_converter/
 │   ├── architecture.md     # 이 문서
 │   ├── testing.md          # 테스트 실행 가이드
 │   ├── release-notes.md    # 버전별 주요 변경 사항
+│   ├── releasing.md        # 배포 전 체크리스트와 설치 경로
 │   └── memory.md           # 작업 로그와 결정 기록
 ├── tests/
 │   └── interactive_cli.rs  # 대화형 CLI PTY + 비대화형 CLI 통합 테스트
@@ -143,6 +144,7 @@ image_converter/
 - `docker-compose.yml`: 현재 작업 디렉토리를 `/workspace` 로 마운트하고 Cargo registry/git/target 을 Docker named volume 으로 분리
 - `scripts/check.sh`: Docker 컨테이너에서 `cargo fmt --check`, `cargo clippy --all-targets --all-features -- -D warnings`, `cargo test` 를 한 번에 실행. `--local` 옵션을 주면 호스트 Cargo 로 실행
 - 기본 이미지는 `rust:1-trixie` (`dav1d >= 1.3.0` 필요), 필요 시 `RUST_IMAGE=rust:1.94-trixie docker compose build` 처럼 고정 가능
+- Docker 의 `target` 은 named volume 이므로 Docker release 빌드는 컨테이너 실행/검증용 Linux 바이너리로 다루고, 호스트 설치용 바이너리는 로컬 Cargo 빌드/설치 경로로 분리
 
 ## 장점
 
@@ -185,5 +187,6 @@ main.rs
 - `README.md`: 사용자용 설치, 사용법, 옵션
 - `AGENTS.md`: 에이전트 공통 작업 규칙
 - `docs/release-notes.md`: 버전별 주요 변경 사항과 지원 범위
+- `docs/releasing.md`: 배포 전 체크리스트, Docker 실행과 로컬 설치 경로
 - `docs/testing.md`: 테스트 실행 방법, 테스트 목록, 매크로 사용법
 - `docs/memory.md`: 작업 컨텍스트, 결정 기록, 진행 중/대기 항목
