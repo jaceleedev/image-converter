@@ -47,6 +47,7 @@ image_converter/
 - 명령줄 모드는 자동화/반복 작업용이며 `-i/--input`, `-o/--output`, `-f/--format` 을 명시적으로 요구
 - 입력 경로 타입(파일/디렉토리)에 따라 단일/일괄 변환 분기
 - 자동화용 옵션으로 최대 가로 크기(`--max-width`) 와 JPEG 배경색(`--jpeg-background`) 을 받아 `ConversionOptions` 로 전달
+- 비대화형 일괄 변환은 모든 대상 처리를 끝낸 뒤 실패 파일이 1개 이상이면 `BatchPartialFailure` 로 종료해 자동화에서 non-zero 상태를 받을 수 있게 함 (`skipped` 는 실패로 보지 않음)
 - 에러 처리 및 종료 — `ConverterError` 의 `Display` 로 메시지 출력
 
 ### `error.rs` (에러 타입)
@@ -54,7 +55,7 @@ image_converter/
 - `ConverterError` enum + `Result<T>` 별칭
 - thiserror 기반, 외부 크레이트 에러(io, image, dialoguer, ravif, ParseFloat, rayon) 는 `#[from]` 으로 자동 변환
 - WebP 인코더의 `&str` 에러는 별도 `Webp(String)` variant 로 매핑 (소유권 확보)
-- 사용자 입력성 에러는 `UnsupportedFormat`, `InvalidPath`, `OutputExists`, `OutputExtensionMismatch` 등 컨텍스트가 담긴 variant
+- 사용자 입력성 에러는 `UnsupportedFormat`, `InvalidPath`, `OutputExists`, `OutputExtensionMismatch`, `BatchPartialFailure` 등 컨텍스트가 담긴 variant
 - Display 메시지는 모두 한국어 (`"입출력 오류: ..."`, `"지원하지 않는 포맷입니다: xyz"` 등)
 
 ### `format.rs` (출력 포맷 타입)
@@ -98,7 +99,7 @@ image_converter/
 - `convert_directory_with_options`: 폴더 전체에 같은 리사이즈 옵션을 적용할 때 사용
 - `convert_directory_with_conversion_options`: 폴더 전체에 같은 `ConversionOptions` 를 적용해 리사이즈와 JPEG 배경색을 함께 전달할 때 사용
 - 각 파일은 `process_one` 헬퍼가 처리하고 변환/건너뜀/실패 결과를 반환 — 한 파일이 실패하거나 기존 출력 파일 때문에 건너뛰어도 나머지는 그대로 진행
-- 결과는 직렬 합산하여 `BatchSummary` 통계로 반환 (`succeeded` / `skipped` / `failed`)
+- 결과는 직렬 합산하여 `BatchSummary` 통계로 반환 (`succeeded` / `skipped` / `failed`). 라이브러리 API 는 요약을 반환하고, 비대화형 CLI 진입점에서 `failed > 0` 을 종료 코드 실패로 매핑
 - 진행률 바 (`indicatif::ProgressBar`) 와 `pb.println` 은 thread-safe (내부 Mutex)
 - 재귀 모드에서 입력 디렉토리 구조를 출력에 미러링
 

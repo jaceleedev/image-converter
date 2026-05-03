@@ -300,59 +300,69 @@ cargo test --release
     - `-i`/`-o`/`-f` 가 모두 있으면 누락 인자가 없는지 확인
     - 비대화형 모드에서 `--max-width`, `--jpeg-background` 값을 함께 파싱하는지 확인
 
+39. **`batch_summary_to_result_*`** (2개)
+    - 일괄 변환 요약에서 실패 파일이 없으면 성공으로 처리하는지 확인 (`skipped` 는 허용)
+    - 실패 파일이 1개 이상이면 `BatchPartialFailure` 로 매핑하는지 확인
+
 ### 🎯 대화형 모드 검증 단위 테스트 (`src/interactive.rs`)
 
-39. **`validate_input_path_*`** (4개)
+40. **`validate_input_path_*`** (4개)
     - 존재하지 않는 경로 거부, 단일 모드에 디렉토리 입력 거부, 배치 모드에 파일 입력 거부, 정상 케이스(파일/디렉토리) 통과
 
-40. **`validate_quality_input_*`** (2개)
+41. **`validate_quality_input_*`** (2개)
     - 1.0/50.5/100.0 정상 범위 통과, 0 / 0.99 / 100.01 / -10 / `"abc"` 거부
 
-41. **`quality_options` / `quality_for_selection`** (2개)
+42. **`quality_options` / `quality_for_selection`** (2개)
     - 웹 권장(90%) 프리셋이 기본 선택지로 앞에 오는지 확인
     - 품질 선택지 순서가 실제 품질 값(90/80/70/100/직접 입력)으로 매핑되는지 확인
 
-42. **`validate_threads_input_*`** (2개)
+43. **`validate_threads_input_*`** (2개)
     - 1, 16 통과, 0 / -1 / `"abc"` / 빈 입력 거부
 
-43. **`validate_resize_width_input_*`** (2개)
+44. **`validate_resize_width_input_*`** (2개)
     - 1 이상의 픽셀 값만 허용하고, 0 / 음수 / 비숫자 / 빈 입력은 거부
 
-44. **`validate_output_file_path_*`** (3개)
+45. **`validate_output_file_path_*`** (3개)
     - 선택 포맷과 출력 파일 확장자가 일치하는지 검증
     - JPEG 는 `.jpg`/`.jpeg` 별칭을 모두 허용하고, 불일치/확장자 없음은 거부
 
-45. **`default_output_path_for_file_*`** (5개)
+46. **`default_output_path_for_file_*`** (5개)
     - 입력 파일과 같은 디렉토리에서 확장자만 바꾼 기본값 제안 (예: `photo.png` + webp → `photo.webp`)
     - 자연스러운 기본 출력 경로가 이미 있으면 `_converted`, `_converted_2` 순서로 충돌 회피
     - 확장자 없는 입력 (`no_ext` + png → `no_ext.png`) 처리
 
-46. **`default_output_path_for_dir_*`** (2개)
+47. **`default_output_path_for_dir_*`** (2개)
     - `{dirname}_converted_{format}` 패턴 (예: `photos` + webp → `photos_converted_webp`), trailing slash (`/tmp/photos/`) 정상 처리
 
-47. **`parse_hex_color_*` / `jpeg_background_options_map_defaults`** (3개)
+48. **`parse_hex_color_*` / `jpeg_background_options_map_defaults`** (3개)
     - `#RRGGBB` 와 `RRGGBB` 입력을 JPEG 배경색으로 파싱하는지 확인
     - 잘못된 색상 입력을 거부하고, 흰색/검정/직접 입력 선택지 매핑을 검증
 
 ### 🖥️ 대화형 CLI PTY 통합 테스트 (`tests/interactive_cli.rs`)
 
-48. **`interactive_default_single_file_flow_converts_to_webp`**
+49. **`interactive_default_single_file_flow_converts_to_webp`**
     - 인자 없이 실행한 실제 바이너리를 `rexpect` PTY 세션에서 조작
     - 기본 선택지 흐름(이미지 1개 변환 → WebP → 웹 권장 품질 → 리사이즈 안 함 → 기본 출력 경로)으로 PNG 를 WebP 로 변환하는지 확인
     - 출력 파일 생성과 WebP 시그니처(`RIFF` / `WEBP`)를 검증
     - `rexpect` 는 PTY 출력을 byte 단위 문자로 읽기 때문에 테스트 안에서 한국어 프롬프트 기대 문자열을 같은 방식으로 변환해 매칭
 
-49. **`interactive_batch_flow_applies_resize`**
+50. **`interactive_batch_flow_applies_resize`**
     - 실제 대화형 모드에서 폴더 전체 변환을 선택하고 PNG 출력 + 최대 가로 크기 리사이즈를 적용하는지 확인
 
-50. **`interactive_jpeg_custom_background_flow_flattens_transparency`**
+51. **`interactive_jpeg_custom_background_flow_flattens_transparency`**
     - 실제 대화형 모드에서 JPEG 출력 + 직접 입력 배경색(`#000000`) 흐름으로 투명 PNG 가 검정 배경 JPEG 로 합성되는지 확인
 
-51. **`non_interactive_cli_applies_max_width`**
+52. **`non_interactive_cli_applies_max_width`**
     - 실제 바이너리에 `--max-width` 를 전달해 PNG 출력 크기가 축소되는지 확인
 
-52. **`non_interactive_cli_applies_jpeg_background`**
+53. **`non_interactive_cli_applies_jpeg_background`**
     - 실제 바이너리에 `--jpeg-background black` 을 전달해 투명 PNG 가 검정 배경 JPEG 로 합성되는지 확인
+
+54. **`non_interactive_batch_exits_nonzero_when_any_file_fails`**
+    - 비대화형 배치 변환에서 정상 이미지와 손상 이미지가 섞여 있을 때 정상 파일은 변환하되 프로세스가 non-zero 로 종료되는지 확인
+
+55. **`non_interactive_batch_skipped_outputs_still_succeed`**
+    - 기존 출력 파일 때문에 건너뛴 항목만 있는 배치 변환은 성공 종료하고 기존 파일을 보존하는지 확인
 
 ## 테스트 매크로
 

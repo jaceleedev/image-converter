@@ -257,4 +257,77 @@ mod unix {
 
         Ok(())
     }
+
+    #[test]
+    fn non_interactive_batch_exits_nonzero_when_any_file_fails() -> Result<(), Box<dyn Error>> {
+        let temp_dir = TempDir::new()?;
+        let input_dir = temp_dir.path().join("input");
+        let output_dir = temp_dir.path().join("output");
+        fs::create_dir(&input_dir)?;
+        create_test_image(&input_dir.join("good.png"))?;
+        fs::write(input_dir.join("broken.png"), b"not really a png")?;
+
+        let status = Command::new(env!("CARGO_BIN_EXE_image_converter"))
+            .args([
+                "-i",
+                input_dir.to_str().expect("테스트 경로는 UTF-8"),
+                "-o",
+                output_dir.to_str().expect("테스트 경로는 UTF-8"),
+                "-f",
+                "webp",
+            ])
+            .env("NO_COLOR", "1")
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()?;
+
+        assert!(
+            !status.success(),
+            "손상 파일이 포함된 배치 변환은 non-zero 로 종료해야 함"
+        );
+        assert!(
+            output_dir.join("good.webp").exists(),
+            "정상 파일 출력은 생성되어야 함"
+        );
+        assert!(
+            !output_dir.join("broken.webp").exists(),
+            "손상 파일 출력은 생성되면 안 됨"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn non_interactive_batch_skipped_outputs_still_succeed() -> Result<(), Box<dyn Error>> {
+        let temp_dir = TempDir::new()?;
+        let input_dir = temp_dir.path().join("input");
+        let output_dir = temp_dir.path().join("output");
+        fs::create_dir(&input_dir)?;
+        fs::create_dir(&output_dir)?;
+        create_test_image(&input_dir.join("photo.png"))?;
+        let existing_output = output_dir.join("photo.webp");
+        fs::write(&existing_output, b"already converted")?;
+
+        let status = Command::new(env!("CARGO_BIN_EXE_image_converter"))
+            .args([
+                "-i",
+                input_dir.to_str().expect("테스트 경로는 UTF-8"),
+                "-o",
+                output_dir.to_str().expect("테스트 경로는 UTF-8"),
+                "-f",
+                "webp",
+            ])
+            .env("NO_COLOR", "1")
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()?;
+
+        assert!(
+            status.success(),
+            "건너뜀만 있는 배치 변환은 성공으로 종료해야 함"
+        );
+        assert_eq!(fs::read(&existing_output)?, b"already converted");
+
+        Ok(())
+    }
 }

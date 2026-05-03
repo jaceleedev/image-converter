@@ -21,6 +21,9 @@ pub enum ConverterError {
     #[error("경로 오류: {0}")]
     InvalidPath(String),
 
+    #[error("일괄 변환 중 {failed}개 파일이 실패했습니다")]
+    BatchPartialFailure { failed: usize },
+
     #[error("출력 경로가 이미 존재합니다: {0}")]
     OutputExists(String),
 
