@@ -49,6 +49,22 @@ impl JpegBackground {
     pub const fn black() -> Self {
         Self { r: 0, g: 0, b: 0 }
     }
+
+    pub fn from_hex(input: &str) -> std::result::Result<Self, String> {
+        let trimmed = input.trim();
+        let trimmed = trimmed.strip_prefix('#').unwrap_or(trimmed);
+        if trimmed.len() != 6 || !trimmed.chars().all(|c| c.is_ascii_hexdigit()) {
+            return Err("#RRGGBB 형식으로 입력하세요".to_string());
+        }
+
+        let r =
+            u8::from_str_radix(&trimmed[0..2], 16).map_err(|_| "빨간색 값을 읽을 수 없습니다")?;
+        let g =
+            u8::from_str_radix(&trimmed[2..4], 16).map_err(|_| "초록색 값을 읽을 수 없습니다")?;
+        let b =
+            u8::from_str_radix(&trimmed[4..6], 16).map_err(|_| "파란색 값을 읽을 수 없습니다")?;
+        Ok(Self { r, g, b })
+    }
 }
 
 /// 변환 전후에 적용할 추가 옵션

@@ -45,6 +45,7 @@ image_converter/
 - 인자 없는 실행 또는 `-I/--interactive` 는 대화형 모드로 분기 (기본 UX)
 - 명령줄 모드는 자동화/반복 작업용이며 `-i/--input`, `-o/--output`, `-f/--format` 을 명시적으로 요구
 - 입력 경로 타입(파일/디렉토리)에 따라 단일/일괄 변환 분기
+- 자동화용 옵션으로 최대 가로 크기(`--max-width`) 와 JPEG 배경색(`--jpeg-background`) 을 받아 `ConversionOptions` 로 전달
 - 에러 처리 및 종료 — `ConverterError` 의 `Display` 로 메시지 출력
 
 ### `error.rs` (에러 타입)
@@ -76,7 +77,7 @@ image_converter/
 - `convert_image_with_conversion_options` / `convert_image_silent_with_conversion_options`: `ConversionOptions` 로 리사이즈와 JPEG 배경색을 함께 전달할 때 사용
 - 두 함수 모두 동일한 내부 인코딩 헬퍼를 호출 (코드 중복 제거)
 - 리사이즈 옵션은 인코딩 전에 적용하며, 최대 가로 크기보다 큰 이미지만 비율 유지 축소 (`Lanczos3`, 확대 없음)
-- JPEG 배경색 옵션은 JPEG 인코딩 직전에 적용하며, 기본 API 에서는 기존 동작을 유지하고 대화형 모드에서만 값을 질문
+- JPEG 배경색 옵션은 JPEG 인코딩 직전에 적용하며, 기본 API 에서는 기존 동작을 유지하고 대화형 모드/CLI 옵션에서만 값을 전달
 - `ConvertStats` 는 원본 크기와 출력 크기를 함께 담아 단일 변환 요약에서 리사이즈 결과를 표시할 수 있음
 - 단일 변환은 출력 파일 확장자가 선택 포맷과 다르면 인코딩 전에 `OutputExtensionMismatch` 로 중단
 - 출력 파일은 `create_new` 방식으로 생성하여 기존 파일을 덮어쓰지 않음. 이미 있으면 `OutputExists` 에러 반환
@@ -125,6 +126,7 @@ image_converter/
 - 테스트 유틸리티 및 매크로
 - 깔끔한 테스트 출력
 - 루트 `tests/interactive_cli.rs` 는 `rexpect` 로 실제 PTY 에서 바이너리를 실행해 `dialoguer` 기반 대화형 흐름을 검증
+- 같은 파일에서 비대화형 CLI 의 `--max-width`, `--jpeg-background` 옵션도 실제 바이너리 실행으로 검증
 
 ### Docker 개발 환경
 

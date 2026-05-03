@@ -45,16 +45,7 @@ fn validate_resize_width_input(input: &str) -> Result<(), &'static str> {
 }
 
 fn parse_hex_color(input: &str) -> Result<JpegBackground, String> {
-    let trimmed = input.trim();
-    let trimmed = trimmed.strip_prefix('#').unwrap_or(trimmed);
-    if trimmed.len() != 6 || !trimmed.chars().all(|c| c.is_ascii_hexdigit()) {
-        return Err("#RRGGBB 형식으로 입력하세요".to_string());
-    }
-
-    let r = u8::from_str_radix(&trimmed[0..2], 16).map_err(|_| "빨간색 값을 읽을 수 없습니다")?;
-    let g = u8::from_str_radix(&trimmed[2..4], 16).map_err(|_| "초록색 값을 읽을 수 없습니다")?;
-    let b = u8::from_str_radix(&trimmed[4..6], 16).map_err(|_| "파란색 값을 읽을 수 없습니다")?;
-    Ok(JpegBackground { r, g, b })
+    JpegBackground::from_hex(input)
 }
 
 fn validate_output_file_path(input: &str, format: OutputFormat) -> Result<(), String> {

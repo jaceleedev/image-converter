@@ -17,7 +17,7 @@ src/
     unit_tests.rs # 단위 테스트
     integration_tests.rs # 통합 테스트
 tests/
-  interactive_cli.rs # rexpect 기반 대화형 CLI PTY 통합 테스트
+  interactive_cli.rs # rexpect 기반 대화형 CLI PTY + 비대화형 CLI 통합 테스트
 ```
 
 ## 테스트 실행 방법
@@ -259,59 +259,76 @@ cargo test --release
 32. **`parse_threads_rejects_non_numeric`**
     - 비숫자(`"abc"`) 와 음수(`"-1"`) 입력 거부 확인
 
-33. **`parse_format_accepts_valid_values_case_insensitive`**
+33. **`parse_max_width_*`** (2개)
+    - `--max-width` 가 1 이상의 픽셀 값을 통과시키고, 0 / 음수 / 비숫자 입력을 거부하는지 확인
+
+34. **`parse_jpeg_background_*`** (2개)
+    - `--jpeg-background` 가 `white`, `black`, `#RRGGBB` 값을 파싱하고 잘못된 색상 입력을 거부하는지 확인
+
+35. **`build_conversion_options_*`** (2개)
+    - CLI 의 `--max-width`, `--jpeg-background` 값을 `ConversionOptions` 로 매핑하는지 확인
+    - JPEG 배경색 옵션이 JPG/JPEG 출력에서만 허용되는지 확인
+
+36. **`parse_format_accepts_valid_values_case_insensitive`**
     - `--format WEBP` 처럼 대문자로 입력해도 `OutputFormat::Webp` 로 파싱되는지 확인
 
-34. **`parse_format_rejects_invalid_value`**
+37. **`parse_format_rejects_invalid_value`**
     - `--format xyz` 같은 미지원 출력 포맷을 clap 단계에서 거부하는지 확인
 
-35. **대화형 기본 실행 / 비대화형 필수 인자 테스트** (4개)
+38. **대화형 기본 실행 / 비대화형 필수 인자/옵션 테스트** (5개)
     - 인자 없이 실행하는 파싱 결과가 대화형 기본 실행으로 분기되는지 확인
     - `-I` 플래그가 입력/출력/포맷 없이도 대화형 모드로 분기되는지 확인
     - 비대화형 모드에서 `-i`/`-o`/`-f` 누락 목록을 올바르게 계산하는지 확인
     - `-i`/`-o`/`-f` 가 모두 있으면 누락 인자가 없는지 확인
+    - 비대화형 모드에서 `--max-width`, `--jpeg-background` 값을 함께 파싱하는지 확인
 
 ### 🎯 대화형 모드 검증 단위 테스트 (`src/interactive.rs`)
 
-36. **`validate_input_path_*`** (4개)
+39. **`validate_input_path_*`** (4개)
     - 존재하지 않는 경로 거부, 단일 모드에 디렉토리 입력 거부, 배치 모드에 파일 입력 거부, 정상 케이스(파일/디렉토리) 통과
 
-37. **`validate_quality_input_*`** (2개)
+40. **`validate_quality_input_*`** (2개)
     - 1.0/50.5/100.0 정상 범위 통과, 0 / 0.99 / 100.01 / -10 / `"abc"` 거부
 
-38. **`quality_options` / `quality_for_selection`** (2개)
+41. **`quality_options` / `quality_for_selection`** (2개)
     - 웹 권장(90%) 프리셋이 기본 선택지로 앞에 오는지 확인
     - 품질 선택지 순서가 실제 품질 값(90/80/70/100/직접 입력)으로 매핑되는지 확인
 
-39. **`validate_threads_input_*`** (2개)
+42. **`validate_threads_input_*`** (2개)
     - 1, 16 통과, 0 / -1 / `"abc"` / 빈 입력 거부
 
-40. **`validate_resize_width_input_*`** (2개)
+43. **`validate_resize_width_input_*`** (2개)
     - 1 이상의 픽셀 값만 허용하고, 0 / 음수 / 비숫자 / 빈 입력은 거부
 
-41. **`validate_output_file_path_*`** (3개)
+44. **`validate_output_file_path_*`** (3개)
     - 선택 포맷과 출력 파일 확장자가 일치하는지 검증
     - JPEG 는 `.jpg`/`.jpeg` 별칭을 모두 허용하고, 불일치/확장자 없음은 거부
 
-42. **`default_output_path_for_file_*`** (5개)
+45. **`default_output_path_for_file_*`** (5개)
     - 입력 파일과 같은 디렉토리에서 확장자만 바꾼 기본값 제안 (예: `photo.png` + webp → `photo.webp`)
     - 자연스러운 기본 출력 경로가 이미 있으면 `_converted`, `_converted_2` 순서로 충돌 회피
     - 확장자 없는 입력 (`no_ext` + png → `no_ext.png`) 처리
 
-43. **`default_output_path_for_dir_*`** (2개)
+46. **`default_output_path_for_dir_*`** (2개)
     - `{dirname}_converted_{format}` 패턴 (예: `photos` + webp → `photos_converted_webp`), trailing slash (`/tmp/photos/`) 정상 처리
 
-44. **`parse_hex_color_*` / `jpeg_background_options_map_defaults`** (3개)
+47. **`parse_hex_color_*` / `jpeg_background_options_map_defaults`** (3개)
     - `#RRGGBB` 와 `RRGGBB` 입력을 JPEG 배경색으로 파싱하는지 확인
     - 잘못된 색상 입력을 거부하고, 흰색/검정/직접 입력 선택지 매핑을 검증
 
 ### 🖥️ 대화형 CLI PTY 통합 테스트 (`tests/interactive_cli.rs`)
 
-45. **`interactive_default_single_file_flow_converts_to_webp`**
+48. **`interactive_default_single_file_flow_converts_to_webp`**
     - 인자 없이 실행한 실제 바이너리를 `rexpect` PTY 세션에서 조작
     - 기본 선택지 흐름(이미지 1개 변환 → WebP → 웹 권장 품질 → 리사이즈 안 함 → 기본 출력 경로)으로 PNG 를 WebP 로 변환하는지 확인
     - 출력 파일 생성과 WebP 시그니처(`RIFF` / `WEBP`)를 검증
     - `rexpect` 는 PTY 출력을 byte 단위 문자로 읽기 때문에 테스트 안에서 한국어 프롬프트 기대 문자열을 같은 방식으로 변환해 매칭
+
+49. **`non_interactive_cli_applies_max_width`**
+    - 실제 바이너리에 `--max-width` 를 전달해 PNG 출력 크기가 축소되는지 확인
+
+50. **`non_interactive_cli_applies_jpeg_background`**
+    - 실제 바이너리에 `--jpeg-background black` 을 전달해 투명 PNG 가 검정 배경 JPEG 로 합성되는지 확인
 
 ## 테스트 매크로
 
@@ -371,7 +388,7 @@ fn test_new_feature() {
 
 ## 테스트 커버리지
 
-현재 테스트는 다음 영역을 커버합니다 (총 73개):
+현재 테스트는 다음 영역을 커버합니다 (총 82개):
 - ✅ 파일 크기 포맷팅
 - ✅ 출력 요약 라벨 (PNG 무손실 / 손실 포맷 품질 표시)
 - ✅ 출력 포맷별 허용 확장자 매칭
@@ -392,9 +409,10 @@ fn test_new_feature() {
 - ✅ 혼합 입력 포맷 일괄 변환 (PNG + WebP + AVIF + TIFF + BMP → PNG)
 - ✅ 명시적 스레드 수 옵션 (`threads=None` vs `threads=Some(1)` 결과 일관성)
 - ✅ JPG/JPEG 단일 입력 (jpeg→webp, jpeg→png, .jpg 확장자 별칭)
-- ✅ CLI 인자 파서 (`--quality` 1.0~100.0 범위, `--threads` ≥ 1 검증, 출력 포맷 허용값 검증, 대화형 기본 실행, 비대화형 필수 인자 검증)
+- ✅ CLI 인자 파서 (`--quality` 1.0~100.0 범위, `--threads` ≥ 1, `--max-width` ≥ 1, `--jpeg-background`, 출력 포맷 허용값, 대화형 기본 실행, 비대화형 필수 인자 검증)
 - ✅ 대화형 모드 검증 클로저 + 디폴트 출력 경로 빌더 (순수 함수로 분리하여 단위 테스트)
 - ✅ 대화형 CLI PTY 통합 테스트 (인자 없는 실행의 단일 파일 기본 변환 흐름)
+- ✅ 비대화형 CLI 통합 테스트 (`--max-width`, `--jpeg-background` 실제 바이너리 흐름)
 
 향후 추가할 수 있는 테스트:
 - 10-bit AVIF 입력 디코딩 (`image` 0.25 업그레이드 후)
