@@ -68,9 +68,9 @@ image_converter/
 
 - `encode_to`: 메모리 이미지를 WebP/AVIF/PNG/JPG/JPEG 바이트로 인코딩 (내부 헬퍼)
   - WebP: `webp::Encoder::from_image` + `encode(quality)`
-  - AVIF: `ravif::Encoder` (rav1e 기반, RGBA 추출 후 인코딩) — `with_bit_depth(BitDepth::Eight)` 로 **8-bit 강제** (image 0.24 디코더와 호환성 유지)
-  - PNG: `image` 크레이트의 `write_to(&mut Cursor, ImageOutputFormat::Png)` — 무손실, quality 무시
-  - JPG/JPEG: 알파 채널을 가질 수 없어 RGB 로 변환 후 `ImageOutputFormat::Jpeg(quality_u8)`. `JpegBackground` 가 지정되면 인코딩 전에 투명 픽셀을 해당 배경색 위에 합성
+  - AVIF: `ravif::Encoder` (rav1e 기반, RGBA 추출 후 인코딩) — `image` 0.25 + `avif-native` 기반 라운드트립이 가능해 ravif 기본 bit depth 사용
+  - PNG: `image` 크레이트의 `write_to(&mut Cursor, ImageFormat::Png)` — 무손실, quality 무시
+  - JPG/JPEG: 알파 채널을 가질 수 없어 RGB 로 변환 후 `JpegEncoder::new_with_quality`. `JpegBackground` 가 지정되면 인코딩 전에 투명 픽셀을 해당 배경색 위에 합성
 - `convert_image`: 진행률 + 결과 출력 포함
 - `convert_image_silent`: 출력 없는 변환 (`ConvertStats` 반환). 배치 모드와 테스트에서 사용
 - `convert_image_with_options` / `convert_image_silent_with_options`: `ResizeOptions` 같은 변환 전처리 옵션을 적용할 때 사용
@@ -165,11 +165,10 @@ main.rs
 
 ## 향후 개선 제안
 
-1. **`image` 0.25 업그레이드**: 10-bit AVIF 디코딩 지원. breaking change 가 있어 별도 작업
-2. **HEIC 입력**: iPhone 사진 변환용. `libheif` 시스템 의존성 + 외부 크레이트
-3. **손상 파일/대용량 입력 테스트**: 일괄 변환 중 일부 파일 실패와 큰 이미지 처리 안정성 검증
-4. **설정 모듈**: 품질 프리셋, 기본값 등을 관리하는 `config.rs`
-5. **다국어 지원**: 메시지를 별도 파일로 분리
+1. **HEIC 입력**: iPhone 사진 변환용. `libheif` 시스템 의존성 + 외부 크레이트
+2. **손상 파일/대용량 입력 테스트**: 일괄 변환 중 일부 파일 실패와 큰 이미지 처리 안정성 검증
+3. **설정 모듈**: 품질 프리셋, 기본값 등을 관리하는 `config.rs`
+4. **다국어 지원**: 메시지를 별도 파일로 분리
 
 이 구조는 현재 프로젝트 규모에 적합하며, 향후 확장에도 대응할 수 있습니다.
 

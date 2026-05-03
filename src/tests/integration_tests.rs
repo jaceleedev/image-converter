@@ -822,7 +822,7 @@ fn test_batch_with_explicit_threads() -> Result<(), Box<dyn std::error::Error>> 
 #[test]
 fn test_avif_input_to_png() -> Result<(), Box<dyn std::error::Error>> {
     test_description!("AVIF → PNG 역변환 테스트");
-    test_step!("AVIF 파일을 PNG 로 디코딩 (avif-decoder feature + dav1d)");
+    test_step!("AVIF 파일을 PNG 로 디코딩 (image 0.25 avif-native 디코더)");
 
     let temp_dir = TempDir::new()?;
     let png_seed = temp_dir.path().join("seed.png");

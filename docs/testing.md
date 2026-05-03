@@ -221,7 +221,7 @@ cargo test --release
     - PNG + WebP + AVIF + TIFF + BMP 5종이 한 디렉토리에 섞여 있을 때 모두 PNG 로 일괄 변환되는지 확인 (배치 모드의 입력 화이트리스트 + 다중 디코더 결합 검증)
 
 22. **`test_avif_input_to_png`**
-    - AVIF → PNG 라운드트립이 동작하는지 확인 (`avif-decoder` feature + `dav1d` 디코딩, 8-bit AVIF 인코딩)
+    - AVIF → PNG 라운드트립이 동작하는지 확인 (`image` 0.25 `avif-native` 디코딩 + `ravif` 기본 인코딩)
     - 출력 파일이 PNG 매직 바이트로 시작하는지 검증
 
 23. **`test_batch_with_explicit_threads`**
@@ -421,7 +421,6 @@ fn test_new_feature() {
 - ✅ 비대화형 CLI 통합 테스트 (`--max-width`, `--jpeg-background` 실제 바이너리 흐름)
 
 향후 추가할 수 있는 테스트:
-- 10-bit AVIF 입력 디코딩 (`image` 0.25 업그레이드 후)
 - 일괄 변환 중 일부 파일이 손상되어 실패할 때의 동작
 - 대용량 이미지 처리
 - 메모리 사용량 테스트

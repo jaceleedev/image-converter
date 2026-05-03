@@ -33,7 +33,7 @@
 | PNG        |  ✅  |  ✅  | 무손실. 출력 시 `--quality` 무시                                                                    |
 | JPG / JPEG |  ✅  |  ✅  | 알파 채널 미지원 — RGB 변환 후 인코딩. 대화형 출력 시 투명 영역 배경색 선택 가능                    |
 | WebP       |  ✅  |  ✅  |                                                                                                     |
-| AVIF       |  ✅  |  ✅  | 인코딩은 8-bit 로 고정 (라운드트립 호환성). 외부 도구로 만든 10-bit AVIF 입력은 `image` 0.24 한계로 미지원 |
+| AVIF       |  ✅  |  ✅  | `image` 0.25 + `avif-native` 기반 8/10/12-bit 입력 디코딩 지원. 출력은 `ravif` 기본 설정 사용 |
 | TIFF       |  ✅  |  ❌  | 입력만 지원                                                                                         |
 | BMP        |  ✅  |  ❌  | 입력만 지원                                                                                         |
 | ICO        |  ✅  |  ❌  | 입력만 지원                                                                                         |
@@ -42,7 +42,7 @@
 
 ### Docker 개발 환경 (추천)
 
-로컬 OS 에 Rust / `nasm` / `dav1d` 를 직접 설치하지 않고, 컨테이너 안에서 빌드와 테스트를 실행할 수 있습니다. WSL, macOS, 새 MacBook 으로 옮겨도 같은 Debian 기반 환경을 사용합니다.
+로컬 OS 에 Rust / `nasm` / `dav1d` / `pkg-config` 를 직접 설치하지 않고, 컨테이너 안에서 빌드와 테스트를 실행할 수 있습니다. WSL, macOS, 새 MacBook 으로 옮겨도 같은 Debian 기반 환경을 사용합니다.
 
 ```bash
 # 개발 이미지 빌드
@@ -90,14 +90,14 @@ RUST_IMAGE=rust:1.94-trixie docker compose build
 ### 로컬 설치
 
 1. Rust가 설치되어 있어야 합니다. [Rust 설치 가이드](https://www.rust-lang.org/tools/install)를 참고하세요.
-2. **시스템 라이브러리 설치** — AVIF 인코딩(`rav1e`)에는 `nasm`, AVIF 디코딩(`dav1d`)에는 `libdav1d` 가 필요합니다.
+2. **시스템 라이브러리 설치** — AVIF 인코딩(`rav1e`)에는 `nasm`, AVIF 디코딩(`image` `avif-native`)에는 `libdav1d` 와 `pkg-config` 가 필요합니다.
 
    ```bash
    # Ubuntu / WSL
-   sudo apt install -y nasm libdav1d-dev
+   sudo apt install -y nasm libdav1d-dev pkg-config
 
    # macOS
-   brew install nasm dav1d
+   brew install nasm dav1d pkg-config
    ```
 
 3. 이 프로젝트를 클론하거나 다운로드합니다:
@@ -161,7 +161,7 @@ JPEG 출력에서는 투명 PNG/WebP 의 투명 영역을 배경색 위에 합�
 # 역변환: WebP → PNG (무손실, quality 무시됨)
 ./target/release/image_converter -i photo.webp -o photo.png -f png
 
-# 역변환: AVIF → PNG (8-bit AVIF 만 지원)
+# 역변환: AVIF → PNG (8/10/12-bit AVIF 입력 지원)
 ./target/release/image_converter -i photo.avif -o photo.png -f png
 
 # JPEG 로 변환 (알파 채널이 있으면 자동 RGB 변환)
