@@ -246,7 +246,7 @@ pub fn convert_directory_with_conversion_options(
     Ok(summary)
 }
 
-/// 단일 파일을 변환하고, 진행률 바를 1 증가시킨다. 실패 시 progressbar 위에 메시지를 찍고 None 반환
+/// 단일 파일을 변환하고, 진행률 바를 1 증가시킨다. 실패 시 progressbar 위에 메시지를 찍고 실패 결과를 반환
 fn process_one(
     file: &Path,
     input_dir: &Path,
