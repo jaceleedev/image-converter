@@ -1,9 +1,10 @@
 use colored::*;
 use image::{
-    imageops::FilterType, DynamicImage, GenericImageView, ImageOutputFormat, Rgb, RgbImage,
+    codecs::jpeg::JpegEncoder, imageops::FilterType, DynamicImage, GenericImageView, ImageFormat,
+    Rgb, RgbImage,
 };
 use indicatif::{ProgressBar, ProgressStyle};
-use ravif::{BitDepth, Encoder as AvifEncoder, Img, RGBA8};
+use ravif::{Encoder as AvifEncoder, Img, RGBA8};
 use std::fs;
 use std::io::{Cursor, ErrorKind, Write};
 use std::path::Path;
@@ -95,19 +96,14 @@ fn encode_to(
                 .pixels()
                 .map(|p| RGBA8::new(p[0], p[1], p[2], p[3]))
                 .collect();
-            // 8-bit depth 로 강제 — image 0.24 의 AVIF 디코더가 8-bit 만 지원하므로
-            // 라운드트립(역변환) 호환성을 위해 ravif default(10-bit) 대신 8-bit 사용
-            let encoder = AvifEncoder::new()
-                .with_quality(quality)
-                .with_speed(4)
-                .with_bit_depth(BitDepth::Eight);
+            let encoder = AvifEncoder::new().with_quality(quality).with_speed(4);
             let res = encoder.encode_rgba(Img::new(&pixels, width as usize, height as usize))?;
             Ok(res.avif_file)
         }
         OutputFormat::Png => {
             // PNG 는 무손실 — quality 는 의미 없음 (조용히 무시)
             let mut buf: Vec<u8> = Vec::new();
-            img.write_to(&mut Cursor::new(&mut buf), ImageOutputFormat::Png)?;
+            img.write_to(&mut Cursor::new(&mut buf), ImageFormat::Png)?;
             Ok(buf)
         }
         OutputFormat::Jpg | OutputFormat::Jpeg => {
@@ -118,7 +114,7 @@ fn encode_to(
                 None => DynamicImage::ImageRgb8(img.to_rgb8()),
             };
             let mut buf: Vec<u8> = Vec::new();
-            rgb.write_to(&mut Cursor::new(&mut buf), ImageOutputFormat::Jpeg(q))?;
+            JpegEncoder::new_with_quality(&mut buf, q).encode_image(&rgb)?;
             Ok(buf)
         }
     }

@@ -12,6 +12,16 @@
 
 ## 최근 작업 로그
 
+### 2026-05-03 — image 0.25 업그레이드
+
+- `image` 를 0.25.10 으로 업그레이드하고 AVIF 입력 디코딩을 위해 `avif-native` feature 를 활성화. `ravif` 는 0.13.0, `webp` 는 0.3.1 로 맞춤
+- `ImageOutputFormat` 제거에 대응
+  - PNG 출력은 `ImageFormat::Png` 사용
+  - JPEG 출력은 품질 값을 유지하기 위해 `JpegEncoder::new_with_quality` 사용
+- `image` 0.25 + `avif-native` AVIF 디코더가 10/12-bit 입력을 지원하므로, 기존 `ravif` 8-bit 강제 workaround 제거
+- `avif-native` 가 `dav1d` 를 사용하므로 Docker/README 의 `libdav1d-dev` / `dav1d` / `pkg-config` 안내는 유지
+- AGENTS.md / README / docs/architecture.md / docs/testing.md 갱신
+
 ### 2026-05-03 — 대화형 CLI PTY 시나리오 확장
 
 - `tests/interactive_cli.rs` 에 실제 대화형 흐름 2개 추가
@@ -366,11 +376,11 @@
 - **`Option<usize>` vs `usize` (default 0)** — `clap` 으로 받을 때 `Option<usize>` 가 "사용자가 명시했는지" 와 "default 사용" 을 명확히 구분해줌. `0 = default` 컨벤션은 마술적이라 회피.
 - **CLI 플래그가 `RAYON_NUM_THREADS` 환경변수보다 우선** — `-t N` 으로 명시한 경우 local pool 을 만들어 그 안에서 실행하므로 환경변수가 무시됨. 직관적이고 사용자가 한 번에 통제 가능.
 - **단일 변환 출력 확장자는 선택 포맷과 일치해야 함** — `-f webp -o photo.jpg` 처럼 실제 인코딩 결과와 파일명이 어긋나는 실수를 막기 위해 인코딩 전 차단. 포맷 추론은 하지 않고 `OutputFormat` 을 단일 기준으로 유지한다. JPEG 는 사용자 습관을 고려해 `.jpg` 와 `.jpeg` 를 모두 허용.
-- **AVIF 인코딩을 8-bit 로 강제 (`with_bit_depth(BitDepth::Eight)`)** — `ravif` default 가 10-bit (Auto = Ten) 인데 `image` 0.24 AVIF 디코더는 8-bit 만 지원. 강제 안 하면 우리가 만든 AVIF 를 우리가 디코딩 못 하는 라운드트립 모순 발생. 일반 사진 변환 용도에서는 8-bit 로도 충분하고 호환성(타 뷰어/디코더) 도 더 좋음. 단점은 HDR / 부드러운 그라디언트 케이스에서 약간 손해 — `image` 0.25 업그레이드로 10-bit 디코딩 지원되면 default 풀어줄 후보.
-- **외부 10-bit AVIF 입력은 명시적으로 미지원** — `image` 0.24 의 디코더 한계. 사용자가 다른 도구로 만든 10-bit AVIF 를 입력으로 쓰면 `Only 8 bit depth is supported but was 10` 에러. README 매트릭스 표 비고에 한 줄 명시. `image` 0.25 업그레이드를 향후 후보로 정리.
-- **A안 채택 (1단계에서 AVIF 입력 제외)** — `image` 크레이트의 `avif-decoder` feature 는 `dav1d` 시스템 라이브러리 (`libdav1d-dev` apt / `dav1d` brew) 를 요구. 1단계는 시스템 의존성 추가 없는 작업으로 분리하고, B안 (AVIF 입력) 은 별도 PR 로 진행해 의존성 변경의 의도를 명확히 함.
+- **AVIF 인코딩 8-bit 강제 해제** — `image` 0.25 업그레이드 후 10/12-bit AVIF 디코딩이 가능해져, 기존 `with_bit_depth(BitDepth::Eight)` workaround 를 제거하고 `ravif` 기본 설정을 사용한다.
+- **외부 10/12-bit AVIF 입력 지원** — `image` 0.25 업그레이드 후 AVIF 입력의 bit depth 제한을 README 에서 제거한다.
+- **AVIF 디코딩은 `image` 0.25 `avif-native` 사용** — `dav1d` 시스템 라이브러리 (`libdav1d-dev` apt / `dav1d` brew) 와 `pkg-config` 가 필요하다. Docker 개발 이미지는 이 의존성을 포함한다.
 - **PNG quality 는 조용히 무시** — `encode_to("png", ...)` 가 quality 인자를 받지만 사용하지 않음. CLI 와 대화형 모드에서 사용자에게 "무손실이라 적용 안 됨" 한 줄 안내 + `-q` doc 주석에도 명시. 에러로 거부하지 않는 이유는 배치 모드에서 한 quality 값을 여러 출력 포맷에 공통 적용하는 흐름을 깨지 않기 위함.
-- **JPEG 출력 시 명시적 RGB 변환 사용** — `image` 의 `write_to(..., ImageOutputFormat::Jpeg(q))` 는 RGBA 입력도 받지만 동작이 버전에 따라 다를 수 있음. 기본 API 에서는 기존처럼 `DynamicImage::ImageRgb8(img.to_rgb8())` 로 변환 후 인코딩하고, `ConversionOptions.jpeg_background` 가 있으면 인코딩 전에 알파 채널을 지정 배경색 위에 합성한다.
+- **JPEG 출력 시 명시적 RGB 변환 사용** — `image` 0.25 에서는 품질 유지를 위해 `JpegEncoder::new_with_quality` 를 직접 사용한다. 기본 API 에서는 기존처럼 RGB 로 변환 후 인코딩하고, `ConversionOptions.jpeg_background` 가 있으면 인코딩 전에 알파 채널을 지정 배경색 위에 합성한다.
 - **대화형 JPEG 배경 기본값은 흰색** — 투명 PNG/WebP 아이콘을 JPEG 로 만들 때 웹 페이지의 기본 배경과 가장 자주 맞는 값이라 `#FFFFFF` 를 기본 선택지로 둔다. 검정과 직접 입력(`#RRGGBB`)도 제공하되, CLI 플래그는 아직 늘리지 않고 대화형 우선 흐름에서만 질문한다.
 - **PDF 입력은 이번 릴리즈에서 제외** — PDF는 이미지처럼 취급하고 싶은 사용 사례가 있지만, 실제로는 페이지가 있는 문서 컨테이너라 페이지 선택, DPI, 다중 페이지 출력 이름 규칙이 함께 필요하다. 현재 릴리즈는 PNG/JPEG/WebP/AVIF/TIFF/BMP/ICO 같은 실제 이미지 파일 변환 완성도에 집중하고, PDF는 별도 기능으로 설계한다.
 - **`jpg` 와 `jpeg` 를 같은 분기로** — `match` 의 or-pattern (`"jpg" | "jpeg"`) 으로 한 분기에서 처리. 사용자 친화적이면서 코드 중복 없음. 출력 확장자도 `.jpg` 와 `.jpeg` 안에서는 사용자가 명시한 그대로 사용 (둘 다 동일 JPEG 컨테이너).
@@ -378,7 +388,7 @@
 - **rayon `par_iter().map().collect()` + 직렬 합산** — Atomic 카운터나 `fold/reduce` 보다 단순. `BatchSummary` 구조체 변경 없이 결과만 병렬 수집 후 한 번에 누적.
 - **rayon 도입 이후 path 인코딩 실패의 의미 변경** — 직렬 시절엔 `?` 로 outer 함수까지 propagation 되어 한 파일이 실패하면 전체 일괄 변환이 중단됐는데, 병렬화하면서 "그 파일만 실패" 패턴으로 변경. 일괄 변환의 자연스러운 의미와 더 잘 맞음.
 - **진행률 메시지 제거** — `pb.set_message(file_name)` 은 병렬에서 race 로 깜빡깜빡거려 정보보다 noise. 카운트(`{pos}/{len}`)만 보여주고 finish 메시지로 마무리.
-- **스레드 수는 환경변수로** — `RAYON_NUM_THREADS=N` 으로 제어. 명시적 `--threads` CLI 플래그는 단순함을 위해 보류, 필요해지면 추가.
+- **스레드 수는 CLI 플래그가 우선** — 현재는 `--threads N` 이 있으면 local rayon pool 로 실행하고, 없으면 `RAYON_NUM_THREADS` 등 rayon 기본 동작을 따른다.
 - **`crate::error::Result` 를 1-generic alias 로 정의** — `pub type Result<T> = std::result::Result<T, ConverterError>`. 코드량은 줄지만 dialoguer 의 `validate_with` 클로저(`Result<(), &str>` 시그니처) 와 이름이 충돌함. interactive.rs 에서는 use 를 제거하고 시그니처에 `crate::error::Result<()>` fully qualified 사용으로 회피.
 - **WebP 에러는 `String` 으로 owned 변환** — `webp::Encoder::from_image` 가 `Result<Self, &str>` 를 반환. `&str` 은 `#[from]` 대상이 안 되고, `'static` 이 아니라 그대로 들고 있을 수도 없음. `Webp(String)` variant 로 받고 `.to_string()` 으로 매핑.
 - **`UnsupportedFormat` 에 포맷 문자열 포함** — 기존 `"지원하지 않는 포맷입니다"` 정적 메시지를 `"지원하지 않는 포맷입니다: {0}"` 로 변경. 디버그/사용자 경험 모두 향상되지만 기존 `assert_eq!` 테스트가 깨짐 → `contains` 검증으로 함께 갱신.
@@ -405,7 +415,7 @@
 - [x] **커스텀 에러 타입 (`thiserror`)** — 완료. `ConverterError` enum + 9 variant.
 - [x] **일괄 변환 병렬화 (`rayon`)** — 완료. 16코어에서 8장 AVIF 변환 8.3배 ↑.
 - [x] **다중 입출력 포맷 지원 (A안)** — 완료. PNG/JPG/JPEG 출력 + WebP/TIFF/BMP/ICO 입력 추가. 18 테스트 통과.
-- [x] **AVIF 입력 (B안)** — 완료. `avif-decoder` feature 활성화 + `libdav1d-dev` 의존성 추가. 라운드트립을 위해 ravif 인코딩을 8-bit 로 강제. 19 테스트 통과.
+- [x] **AVIF 입력 (B안)** — 완료. 현재는 `image` 0.25 `avif-native` + `libdav1d-dev` 의존성으로 8/10/12-bit 입력을 디코딩하고, AVIF 출력은 `ravif` 기본 설정을 사용.
 - [x] **`--threads` CLI 옵션** — 완료. `convert_directory` 가 `Option<usize>` 를 받아 local pool 로 scoped 실행. CLI 우선, 환경변수 fallback. 20 테스트 통과.
 - [x] **JPG/JPEG 단일 입력 명시 회귀 테스트** — 완료. 통합 테스트 3개 추가 (jpeg→webp, jpeg→png, .jpg 확장자 입력). 23 테스트 통과.
 - [x] **CLI 인자 검증 강화** — 완료. `parse_quality` / `parse_threads` 사용자 정의 파서 + 단위 테스트 6개. `--threads 0` 한국어 메시지로 차단, `--quality 200/0.5/abc` 거부. 29 테스트 통과.
@@ -421,14 +431,14 @@
 - [x] **대화형 모드 통합 테스트** — 완료. `rexpect` PTY 테스트로 인자 없는 단일 파일 기본 변환 흐름을 검증.
 - [x] **비대화형 CLI 변환 옵션** — 완료. `--max-width`, `--jpeg-background` 를 자동화용 CLI 에 추가하고 실제 바이너리 통합 테스트로 검증.
 - [x] **대화형 모드 추가 PTY 시나리오** — 완료. 배치 모드 리사이즈와 JPEG 배경색 직접 입력 흐름을 실제 PTY 테스트로 검증.
-- [ ] **`image` 0.25 업그레이드** — 10-bit AVIF 디코딩 지원. breaking change 가 있어 별도 작업. 업그레이드 후 ravif 의 8-bit 강제도 풀어줄 수 있음
+- [x] **`image` 0.25 업그레이드** — 완료. 10/12-bit AVIF 디코딩 지원, `ImageOutputFormat` 제거 대응, AVIF 8-bit 강제 제거.
 - [ ] **PDF 입력** — 첫 페이지만 렌더링할지, 페이지 범위를 여러 파일로 내보낼지, 기본 DPI를 어떻게 둘지 먼저 정해야 하는 별도 기능.
 - [ ] **HEIC 입력** — `libheif` 시스템 의존성 + `libheif-rs` 등 외부 크레이트. 부담 큼.
 
 ## 환경 메모
 
-- 빌드 시 두 시스템 라이브러리가 필요:
+- 빌드 시 시스템 도구/라이브러리가 필요:
   - `nasm` — rav1e (AVIF 인코딩) 빌드용
-  - `libdav1d-dev` (apt) / `dav1d` (brew) — dav1d-sys (AVIF 디코딩) 빌드용. `pkg-config` 로 동적 링크
-- 한 줄 설치: `sudo apt-get install -y nasm libdav1d-dev` (Ubuntu/WSL) / `brew install nasm dav1d` (macOS)
-- 빌드 실패 시그널: `Package dav1d was not found in the pkg-config search path` 는 `libdav1d-dev` 누락. nasm 누락은 rav1e 컴파일 단계에서 명확한 에러로 안내됨.
+  - `libdav1d-dev` (Ubuntu/WSL) / `dav1d` (macOS) — `image` 0.25 `avif-native` AVIF 디코딩용. `pkg-config` 로 동적 링크
+- 한 줄 설치: `sudo apt-get install -y nasm libdav1d-dev pkg-config` (Ubuntu/WSL) / `brew install nasm dav1d pkg-config` (macOS)
+- Docker 개발 환경은 위 의존성을 이미지 안에 설치하므로 로컬 OS 에 Rust/nasm/dav1d/pkg-config 를 직접 설치하지 않아도 됨.
