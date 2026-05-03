@@ -12,6 +12,14 @@
 
 ## 최근 작업 로그
 
+### 2026-05-03 — 대화형 CLI PTY 시나리오 확장
+
+- `tests/interactive_cli.rs` 에 실제 대화형 흐름 2개 추가
+  - `interactive_batch_flow_applies_resize`: 폴더 전체 변환에서 PNG 출력과 최대 가로 크기 리사이즈 적용 확인
+  - `interactive_jpeg_custom_background_flow_flattens_transparency`: JPEG 출력에서 직접 입력 배경색(`#000000`) 으로 투명 영역 합성 확인
+- Select 선택지 이동 헬퍼를 추가해 `dialoguer` 메뉴의 비기본 선택지를 PTY 에서 조작
+- docs/testing.md 갱신 — 테스트 수 84개 기준
+
 ### 2026-05-03 — 비대화형 CLI 변환 옵션 추가
 
 - 자동화용 명령줄 모드에 `--max-width <PX>` 옵션 추가
@@ -412,10 +420,10 @@
 - [x] **2.5.0 릴리즈 준비** — 완료. 버전 bump + 릴리즈 노트 추가.
 - [x] **대화형 모드 통합 테스트** — 완료. `rexpect` PTY 테스트로 인자 없는 단일 파일 기본 변환 흐름을 검증.
 - [x] **비대화형 CLI 변환 옵션** — 완료. `--max-width`, `--jpeg-background` 를 자동화용 CLI 에 추가하고 실제 바이너리 통합 테스트로 검증.
+- [x] **대화형 모드 추가 PTY 시나리오** — 완료. 배치 모드 리사이즈와 JPEG 배경색 직접 입력 흐름을 실제 PTY 테스트로 검증.
 - [ ] **`image` 0.25 업그레이드** — 10-bit AVIF 디코딩 지원. breaking change 가 있어 별도 작업. 업그레이드 후 ravif 의 8-bit 강제도 풀어줄 수 있음
 - [ ] **PDF 입력** — 첫 페이지만 렌더링할지, 페이지 범위를 여러 파일로 내보낼지, 기본 DPI를 어떻게 둘지 먼저 정해야 하는 별도 기능.
 - [ ] **HEIC 입력** — `libheif` 시스템 의존성 + `libheif-rs` 등 외부 크레이트. 부담 큼.
-- [ ] **대화형 모드 추가 PTY 시나리오** — 배치 모드, JPEG 배경색 직접 입력, 리사이즈 적용 흐름은 필요 시 추가.
 
 ## 환경 메모
 

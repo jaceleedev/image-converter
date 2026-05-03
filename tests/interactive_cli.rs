@@ -3,6 +3,7 @@ mod unix {
     use image::{GenericImageView, ImageBuffer, Rgb, Rgba, RgbaImage};
     use rexpect::session::{spawn_command, PtySession};
     use std::error::Error;
+    use std::fs;
     use std::process::{Command, Stdio};
     use tempfile::TempDir;
 
@@ -24,6 +25,17 @@ mod unix {
 
     fn expect_text(session: &mut PtySession, text: &str) -> Result<(), rexpect::error::Error> {
         session.exp_string(&pty_text(text)).map(|_| ())
+    }
+
+    fn choose_select(
+        session: &mut PtySession,
+        down_count: usize,
+    ) -> Result<(), rexpect::error::Error> {
+        if down_count == 0 {
+            session.send_line("").map(|_| ())
+        } else {
+            session.send_line(&"\x1b[B".repeat(down_count)).map(|_| ())
+        }
     }
 
     #[test]
@@ -64,6 +76,112 @@ mod unix {
         assert!(
             output.starts_with(b"RIFF") && output.get(8..12) == Some(b"WEBP"),
             "출력 파일은 WebP 시그니처를 가져야 함"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn interactive_batch_flow_applies_resize() -> Result<(), Box<dyn Error>> {
+        let temp_dir = TempDir::new()?;
+        let input_dir = temp_dir.path().join("input");
+        let output_dir = temp_dir.path().join("output");
+        fs::create_dir(&input_dir)?;
+        create_test_image(&input_dir.join("first.png"))?;
+        create_test_image(&input_dir.join("second.png"))?;
+
+        let mut command = Command::new(env!("CARGO_BIN_EXE_image_converter"));
+        command.env("NO_COLOR", "1");
+        let mut session = spawn_command(command, Some(20_000))?;
+
+        expect_text(&mut session, "무엇을 변환할까요?")?;
+        choose_select(&mut session, 1)?;
+
+        expect_text(&mut session, "이미지가 들어 있는 폴더 경로")?;
+        session.send_line(input_dir.to_str().expect("테스트 경로는 UTF-8"))?;
+
+        expect_text(&mut session, "하위 폴더까지 포함할까요?")?;
+        session.send_line("")?;
+
+        expect_text(&mut session, "어떤 형식으로 저장할까요?")?;
+        choose_select(&mut session, 2)?;
+
+        expect_text(&mut session, "가로 크기를 줄일까요?")?;
+        session.send_line("y")?;
+
+        expect_text(&mut session, "최대 가로 크기")?;
+        session.send_line("16")?;
+
+        expect_text(&mut session, "동시 변환 스레드 수")?;
+        session.send_line("")?;
+
+        expect_text(&mut session, "저장할 폴더 경로")?;
+        session.send_line(output_dir.to_str().expect("테스트 경로는 UTF-8"))?;
+
+        expect_text(&mut session, "일괄 변환 완료")?;
+        session.exp_eof()?;
+
+        assert_eq!(
+            image::open(output_dir.join("first.png"))?.dimensions(),
+            (16, 16)
+        );
+        assert_eq!(
+            image::open(output_dir.join("second.png"))?.dimensions(),
+            (16, 16)
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn interactive_jpeg_custom_background_flow_flattens_transparency() -> Result<(), Box<dyn Error>>
+    {
+        let temp_dir = TempDir::new()?;
+        let input_path = temp_dir.path().join("transparent.png");
+        let output_path = temp_dir.path().join("transparent.jpeg");
+        let mut rgba = RgbaImage::new(16, 16);
+        for pixel in rgba.pixels_mut() {
+            *pixel = Rgba([255, 0, 0, 0]);
+        }
+        rgba.save(&input_path)?;
+
+        let mut command = Command::new(env!("CARGO_BIN_EXE_image_converter"));
+        command.env("NO_COLOR", "1");
+        let mut session = spawn_command(command, Some(20_000))?;
+
+        expect_text(&mut session, "무엇을 변환할까요?")?;
+        choose_select(&mut session, 0)?;
+
+        expect_text(&mut session, "변환할 이미지 파일 경로")?;
+        session.send_line(input_path.to_str().expect("테스트 경로는 UTF-8"))?;
+
+        expect_text(&mut session, "어떤 형식으로 저장할까요?")?;
+        choose_select(&mut session, 3)?;
+
+        expect_text(&mut session, "품질을 선택하세요")?;
+        choose_select(&mut session, 0)?;
+
+        expect_text(&mut session, "투명 영역 배경색")?;
+        choose_select(&mut session, 2)?;
+
+        expect_text(&mut session, "배경색")?;
+        session.send_line("#000000")?;
+
+        expect_text(&mut session, "가로 크기를 줄일까요?")?;
+        session.send_line("")?;
+
+        expect_text(&mut session, "저장할 파일 경로")?;
+        session.send_line("")?;
+
+        expect_text(&mut session, "변환 완료")?;
+        session.exp_eof()?;
+
+        let output = image::open(&output_path)?.to_rgb8();
+        let pixel = output.get_pixel(0, 0);
+        assert!(
+            pixel[0] < 15 && pixel[1] < 15 && pixel[2] < 15,
+            "투명 영역이 직접 입력한 검정 배경에 가깝게 합성되어야 함: {:?}",
+            pixel
         );
 
         Ok(())
