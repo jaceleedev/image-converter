@@ -168,6 +168,39 @@ fn test_nonexistent_input_file() {
 }
 
 #[test]
+fn test_single_conversion_rejects_corrupt_image() -> Result<(), Box<dyn std::error::Error>> {
+    test_description!("손상된 단일 이미지 입력 처리 테스트");
+    test_step!(
+        "확장자는 이미지지만 내용이 깨진 파일이면 변환을 실패시키고 출력 파일을 만들지 않는지 확인"
+    );
+
+    let temp_dir = TempDir::new()?;
+    let input_path = temp_dir.path().join("broken.png");
+    let output_path = temp_dir.path().join("broken.webp");
+    fs::write(&input_path, b"this is not a valid png image")?;
+
+    let result = convert_image_silent(
+        input_path.to_str().unwrap(),
+        output_path.to_str().unwrap(),
+        OutputFormat::Webp,
+        90.0,
+    );
+
+    assert!(
+        matches!(result, Err(ConverterError::Image(_))),
+        "손상된 이미지 파일은 Image 에러를 반환해야 함: {:?}",
+        result
+    );
+    assert!(
+        !output_path.exists(),
+        "디코딩 실패 시 출력 파일을 만들면 안 됨"
+    );
+    test_success!("손상 입력 실패 + 출력 파일 미생성 확인");
+
+    Ok(())
+}
+
+#[test]
 fn test_single_conversion_rejects_existing_output() -> Result<(), Box<dyn std::error::Error>> {
     test_description!("단일 변환 출력 덮어쓰기 방지 테스트");
     test_step!("출력 파일이 이미 있으면 변환을 중단하고 기존 파일을 보존하는지 확인");
@@ -278,6 +311,35 @@ fn test_resize_option_does_not_upscale() -> Result<(), Box<dyn std::error::Error
     assert_eq!(stats.output_width, 50);
     assert_eq!(stats.output_height, 25);
     test_success!("원본보다 큰 최대 가로 크기는 확대하지 않음");
+
+    Ok(())
+}
+
+#[test]
+fn test_large_image_resize_preserves_aspect_ratio() -> Result<(), Box<dyn std::error::Error>> {
+    test_description!("큰 이미지 리사이즈 변환 안정성 테스트");
+    test_step!("기존 테스트보다 큰 입력도 비율을 유지하며 축소되는지 확인");
+
+    let temp_dir = TempDir::new()?;
+    let input_path = temp_dir.path().join("large.png");
+    let output_path = temp_dir.path().join("large_resized.png");
+    create_test_image(input_path.to_str().unwrap(), 1280, 720)?;
+
+    let stats = convert_image_silent_with_options(
+        input_path.to_str().unwrap(),
+        output_path.to_str().unwrap(),
+        OutputFormat::Png,
+        100.0,
+        Some(ResizeOptions { max_width: 320 }),
+    )?;
+
+    let img = image::open(&output_path)?;
+    assert_eq!(img.dimensions(), (320, 180));
+    assert_eq!(stats.width, 1280);
+    assert_eq!(stats.height, 720);
+    assert_eq!(stats.output_width, 320);
+    assert_eq!(stats.output_height, 180);
+    test_success!("1280x720 → 320x180 리사이즈 확인");
 
     Ok(())
 }
@@ -469,6 +531,45 @@ fn test_batch_skips_non_image_files() -> Result<(), Box<dyn std::error::Error>> 
         "텍스트 파일은 복사되면 안 됨"
     );
     test_success!("비이미지 파일 스킵 확인");
+
+    Ok(())
+}
+
+#[test]
+fn test_batch_continues_when_image_file_is_corrupt() -> Result<(), Box<dyn std::error::Error>> {
+    test_description!("일괄 변환 손상 이미지 격리 테스트");
+    test_step!("정상 이미지와 손상 이미지가 섞여 있어도 정상 파일은 변환되고 손상 파일만 실패 집계되는지 확인");
+
+    let temp_dir = TempDir::new()?;
+    let input_dir = temp_dir.path().join("input");
+    let output_dir = temp_dir.path().join("output");
+    fs::create_dir(&input_dir)?;
+
+    create_test_image(input_dir.join("good.png").to_str().unwrap(), 64, 64)?;
+    fs::write(input_dir.join("broken.png"), b"not really a png")?;
+
+    let summary = convert_directory(
+        input_dir.to_str().unwrap(),
+        output_dir.to_str().unwrap(),
+        OutputFormat::Webp,
+        80.0,
+        false,
+        None,
+    )?;
+
+    assert_eq!(summary.total_files, 2, "이미지 확장자 2개가 처리 대상");
+    assert_eq!(summary.succeeded, 1, "정상 파일 1개는 성공해야 함");
+    assert_eq!(summary.failed, 1, "손상 파일 1개는 실패로 집계되어야 함");
+    assert_eq!(summary.skipped, 0, "건너뜀은 없어야 함");
+    assert!(
+        output_dir.join("good.webp").exists(),
+        "정상 파일 출력은 생성되어야 함"
+    );
+    assert!(
+        !output_dir.join("broken.webp").exists(),
+        "손상 파일 출력은 생성되면 안 됨"
+    );
+    test_success!("손상 파일 실패 격리 + 정상 파일 변환 확인");
 
     Ok(())
 }
