@@ -324,10 +324,16 @@ cargo test --release
     - 출력 파일 생성과 WebP 시그니처(`RIFF` / `WEBP`)를 검증
     - `rexpect` 는 PTY 출력을 byte 단위 문자로 읽기 때문에 테스트 안에서 한국어 프롬프트 기대 문자열을 같은 방식으로 변환해 매칭
 
-49. **`non_interactive_cli_applies_max_width`**
+49. **`interactive_batch_flow_applies_resize`**
+    - 실제 대화형 모드에서 폴더 전체 변환을 선택하고 PNG 출력 + 최대 가로 크기 리사이즈를 적용하는지 확인
+
+50. **`interactive_jpeg_custom_background_flow_flattens_transparency`**
+    - 실제 대화형 모드에서 JPEG 출력 + 직접 입력 배경색(`#000000`) 흐름으로 투명 PNG 가 검정 배경 JPEG 로 합성되는지 확인
+
+51. **`non_interactive_cli_applies_max_width`**
     - 실제 바이너리에 `--max-width` 를 전달해 PNG 출력 크기가 축소되는지 확인
 
-50. **`non_interactive_cli_applies_jpeg_background`**
+52. **`non_interactive_cli_applies_jpeg_background`**
     - 실제 바이너리에 `--jpeg-background black` 을 전달해 투명 PNG 가 검정 배경 JPEG 로 합성되는지 확인
 
 ## 테스트 매크로
@@ -388,7 +394,7 @@ fn test_new_feature() {
 
 ## 테스트 커버리지
 
-현재 테스트는 다음 영역을 커버합니다 (총 82개):
+현재 테스트는 다음 영역을 커버합니다 (총 84개):
 - ✅ 파일 크기 포맷팅
 - ✅ 출력 요약 라벨 (PNG 무손실 / 손실 포맷 품질 표시)
 - ✅ 출력 포맷별 허용 확장자 매칭
@@ -411,7 +417,7 @@ fn test_new_feature() {
 - ✅ JPG/JPEG 단일 입력 (jpeg→webp, jpeg→png, .jpg 확장자 별칭)
 - ✅ CLI 인자 파서 (`--quality` 1.0~100.0 범위, `--threads` ≥ 1, `--max-width` ≥ 1, `--jpeg-background`, 출력 포맷 허용값, 대화형 기본 실행, 비대화형 필수 인자 검증)
 - ✅ 대화형 모드 검증 클로저 + 디폴트 출력 경로 빌더 (순수 함수로 분리하여 단위 테스트)
-- ✅ 대화형 CLI PTY 통합 테스트 (인자 없는 실행의 단일 파일 기본 변환 흐름)
+- ✅ 대화형 CLI PTY 통합 테스트 (인자 없는 실행의 단일 파일 기본 변환, 폴더 전체 리사이즈, JPEG 직접 배경색 흐름)
 - ✅ 비대화형 CLI 통합 테스트 (`--max-width`, `--jpeg-background` 실제 바이너리 흐름)
 
 향후 추가할 수 있는 테스트:
@@ -419,4 +425,3 @@ fn test_new_feature() {
 - 일괄 변환 중 일부 파일이 손상되어 실패할 때의 동작
 - 대용량 이미지 처리
 - 메모리 사용량 테스트
-- 대화형 모드 추가 PTY 시나리오 (배치 모드, JPEG 배경색 직접 입력, 리사이즈 적용)
