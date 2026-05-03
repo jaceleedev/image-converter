@@ -12,6 +12,20 @@
 
 ## 최근 작업 로그
 
+### 2026-05-03 — 비대화형 CLI 변환 옵션 추가
+
+- 자동화용 명령줄 모드에 `--max-width <PX>` 옵션 추가
+  - 단일 파일과 폴더 전체 변환 모두에서 기존 `ResizeOptions` 로 연결
+  - 1 이상의 픽셀 값만 허용하고, 원본보다 작을 때만 비율 유지 축소
+- 자동화용 명령줄 모드에 `--jpeg-background <COLOR>` 옵션 추가
+  - `white`, `black`, `#RRGGBB` 입력 지원
+  - JPG/JPEG 출력에서만 허용하고 다른 출력 포맷에서는 clap 검증 에러로 차단
+- `JpegBackground::from_hex` 헬퍼를 추가해 대화형/CLI 색상 파싱을 공유
+- 실제 바이너리 통합 테스트 2개 추가
+  - `non_interactive_cli_applies_max_width`
+  - `non_interactive_cli_applies_jpeg_background`
+- README / docs/architecture.md / docs/testing.md 갱신
+
 ### 2026-05-01 — 대화형 CLI PTY 통합 테스트 추가
 
 - `rexpect = "0.7.0"` 을 Unix 전용 dev-dependency 로 추가
@@ -397,6 +411,7 @@
 - [x] **JPEG 배경색 옵션** — 완료. 대화형 JPEG 출력에서 투명 영역 배경색을 선택하고, 인코딩 전 알파 합성을 적용. 72 테스트 통과.
 - [x] **2.5.0 릴리즈 준비** — 완료. 버전 bump + 릴리즈 노트 추가.
 - [x] **대화형 모드 통합 테스트** — 완료. `rexpect` PTY 테스트로 인자 없는 단일 파일 기본 변환 흐름을 검증.
+- [x] **비대화형 CLI 변환 옵션** — 완료. `--max-width`, `--jpeg-background` 를 자동화용 CLI 에 추가하고 실제 바이너리 통합 테스트로 검증.
 - [ ] **`image` 0.25 업그레이드** — 10-bit AVIF 디코딩 지원. breaking change 가 있어 별도 작업. 업그레이드 후 ravif 의 8-bit 강제도 풀어줄 수 있음
 - [ ] **PDF 입력** — 첫 페이지만 렌더링할지, 페이지 범위를 여러 파일로 내보낼지, 기본 DPI를 어떻게 둘지 먼저 정해야 하는 별도 기능.
 - [ ] **HEIC 입력** — `libheif` 시스템 의존성 + `libheif-rs` 등 외부 크레이트. 부담 큼.

@@ -1,9 +1,9 @@
 #[cfg(unix)]
 mod unix {
-    use image::{ImageBuffer, Rgb};
+    use image::{GenericImageView, ImageBuffer, Rgb, Rgba, RgbaImage};
     use rexpect::session::{spawn_command, PtySession};
     use std::error::Error;
-    use std::process::Command;
+    use std::process::{Command, Stdio};
     use tempfile::TempDir;
 
     fn create_test_image(path: &std::path::Path) -> Result<(), Box<dyn Error>> {
@@ -64,6 +64,77 @@ mod unix {
         assert!(
             output.starts_with(b"RIFF") && output.get(8..12) == Some(b"WEBP"),
             "출력 파일은 WebP 시그니처를 가져야 함"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn non_interactive_cli_applies_max_width() -> Result<(), Box<dyn Error>> {
+        let temp_dir = TempDir::new()?;
+        let input_path = temp_dir.path().join("wide.png");
+        let output_path = temp_dir.path().join("wide.png.out.png");
+        create_test_image(&input_path)?;
+
+        let status = Command::new(env!("CARGO_BIN_EXE_image_converter"))
+            .args([
+                "-i",
+                input_path.to_str().expect("테스트 경로는 UTF-8"),
+                "-o",
+                output_path.to_str().expect("테스트 경로는 UTF-8"),
+                "-f",
+                "png",
+                "--max-width",
+                "16",
+            ])
+            .env("NO_COLOR", "1")
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()?;
+
+        assert!(status.success(), "CLI 변환이 성공해야 함");
+        let output = image::open(&output_path)?;
+        assert_eq!(output.dimensions(), (16, 16));
+
+        Ok(())
+    }
+
+    #[test]
+    fn non_interactive_cli_applies_jpeg_background() -> Result<(), Box<dyn Error>> {
+        let temp_dir = TempDir::new()?;
+        let input_path = temp_dir.path().join("transparent.png");
+        let output_path = temp_dir.path().join("transparent.jpg");
+        let mut rgba = RgbaImage::new(16, 16);
+        for pixel in rgba.pixels_mut() {
+            *pixel = Rgba([255, 0, 0, 0]);
+        }
+        rgba.save(&input_path)?;
+
+        let status = Command::new(env!("CARGO_BIN_EXE_image_converter"))
+            .args([
+                "-i",
+                input_path.to_str().expect("테스트 경로는 UTF-8"),
+                "-o",
+                output_path.to_str().expect("테스트 경로는 UTF-8"),
+                "-f",
+                "jpeg",
+                "-q",
+                "100",
+                "--jpeg-background",
+                "black",
+            ])
+            .env("NO_COLOR", "1")
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()?;
+
+        assert!(status.success(), "CLI 변환이 성공해야 함");
+        let output = image::open(&output_path)?.to_rgb8();
+        let pixel = output.get_pixel(0, 0);
+        assert!(
+            pixel[0] < 15 && pixel[1] < 15 && pixel[2] < 15,
+            "투명 영역이 검정 배경에 가깝게 합성되어야 함: {:?}",
+            pixel
         );
 
         Ok(())

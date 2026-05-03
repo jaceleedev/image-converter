@@ -3,7 +3,8 @@ use colored::*;
 use std::path::Path;
 
 use image_converter::{
-    convert_directory, convert_image, interactive::interactive_mode, OutputFormat,
+    convert_directory_with_conversion_options, convert_image_with_conversion_options,
+    interactive::interactive_mode, ConversionOptions, JpegBackground, OutputFormat, ResizeOptions,
 };
 
 fn parse_quality(s: &str) -> Result<f32, String> {
@@ -24,6 +25,39 @@ fn parse_threads(s: &str) -> Result<usize, String> {
         return Err("스레드 수는 1 이상이어야 합니다".into());
     }
     Ok(n)
+}
+
+fn parse_max_width(s: &str) -> Result<u32, String> {
+    let n: u32 = s
+        .parse()
+        .map_err(|_| format!("'{s}' 는 유효한 픽셀 값이 아닙니다"))?;
+    if n == 0 {
+        return Err("최대 가로 크기는 1 이상이어야 합니다".into());
+    }
+    Ok(n)
+}
+
+fn parse_jpeg_background(s: &str) -> Result<JpegBackground, String> {
+    match s.trim().to_ascii_lowercase().as_str() {
+        "white" => Ok(JpegBackground::white()),
+        "black" => Ok(JpegBackground::black()),
+        _ => JpegBackground::from_hex(s),
+    }
+}
+
+fn build_conversion_options(
+    format: OutputFormat,
+    max_width: Option<u32>,
+    jpeg_background: Option<JpegBackground>,
+) -> Result<ConversionOptions, String> {
+    if jpeg_background.is_some() && !format.is_jpeg() {
+        return Err("--jpeg-background 옵션은 JPG/JPEG 출력에서만 사용할 수 있습니다".into());
+    }
+
+    Ok(ConversionOptions {
+        resize: max_width.map(|max_width| ResizeOptions { max_width }),
+        jpeg_background,
+    })
 }
 
 /// 대화형 안내로 웹용 이미지를 PNG/JPG/WebP/AVIF 로 변환합니다
@@ -62,6 +96,14 @@ struct Cli {
     /// 디렉토리 모드에서 사용할 스레드 수 (1 이상, 미지정 시 RAYON_NUM_THREADS 또는 CPU 코어 수)
     #[arg(short, long, value_name = "N", value_parser = parse_threads)]
     threads: Option<usize>,
+
+    /// 최대 가로 크기(px). 원본보다 작을 때만 비율 유지 축소
+    #[arg(long, value_name = "PX", value_parser = parse_max_width)]
+    max_width: Option<u32>,
+
+    /// JPEG 출력 시 투명 영역 배경색 (white, black, #RRGGBB)
+    #[arg(long, value_name = "COLOR", value_parser = parse_jpeg_background)]
+    jpeg_background: Option<JpegBackground>,
 }
 
 fn should_enter_interactive(cli: &Cli, invoked_without_args: bool) -> bool {
@@ -105,19 +147,33 @@ fn main() {
         let input = cli.input.expect("input은 비대화형 모드에서 필수입니다");
         let output = cli.output.expect("output은 비대화형 모드에서 필수입니다");
         let format = cli.format.expect("format은 비대화형 모드에서 필수입니다");
+        let conversion_options =
+            match build_conversion_options(format, cli.max_width, cli.jpeg_background) {
+                Ok(options) => options,
+                Err(message) => Cli::command()
+                    .error(ErrorKind::ValueValidation, message)
+                    .exit(),
+            };
 
         if Path::new(&input).is_dir() {
-            convert_directory(
+            convert_directory_with_conversion_options(
                 &input,
                 &output,
                 format,
                 cli.quality,
                 cli.recursive,
                 cli.threads,
+                conversion_options,
             )
             .map(|_| ())
         } else {
-            convert_image(&input, &output, format, cli.quality)
+            convert_image_with_conversion_options(
+                &input,
+                &output,
+                format,
+                cli.quality,
+                conversion_options,
+            )
         }
     };
 
@@ -169,6 +225,65 @@ mod tests {
     fn parse_threads_rejects_non_numeric() {
         assert!(parse_threads("abc").is_err());
         assert!(parse_threads("-1").is_err());
+    }
+
+    #[test]
+    fn parse_max_width_accepts_positive_pixels() {
+        assert_eq!(parse_max_width("1").unwrap(), 1);
+        assert_eq!(parse_max_width("1600").unwrap(), 1600);
+    }
+
+    #[test]
+    fn parse_max_width_rejects_invalid_values() {
+        assert!(parse_max_width("0").is_err());
+        assert!(parse_max_width("-1").is_err());
+        assert!(parse_max_width("abc").is_err());
+    }
+
+    #[test]
+    fn parse_jpeg_background_accepts_named_and_hex_values() {
+        assert_eq!(
+            parse_jpeg_background("white").unwrap(),
+            JpegBackground::white()
+        );
+        assert_eq!(
+            parse_jpeg_background("BLACK").unwrap(),
+            JpegBackground::black()
+        );
+        assert_eq!(
+            parse_jpeg_background("#1A2b3C").unwrap(),
+            JpegBackground {
+                r: 0x1A,
+                g: 0x2B,
+                b: 0x3C,
+            }
+        );
+    }
+
+    #[test]
+    fn parse_jpeg_background_rejects_invalid_values() {
+        assert!(parse_jpeg_background("#fff").is_err());
+        assert!(parse_jpeg_background("blue").is_err());
+    }
+
+    #[test]
+    fn build_conversion_options_maps_cli_values() {
+        let options = build_conversion_options(
+            OutputFormat::Jpeg,
+            Some(1200),
+            Some(JpegBackground::black()),
+        )
+        .unwrap();
+
+        assert_eq!(options.resize, Some(ResizeOptions { max_width: 1200 }));
+        assert_eq!(options.jpeg_background, Some(JpegBackground::black()));
+    }
+
+    #[test]
+    fn build_conversion_options_rejects_jpeg_background_for_non_jpeg() {
+        let err = build_conversion_options(OutputFormat::Webp, None, Some(JpegBackground::white()))
+            .unwrap_err();
+        assert!(err.contains("JPG/JPEG 출력"));
     }
 
     #[test]
@@ -240,5 +355,26 @@ mod tests {
         .unwrap();
         assert!(!should_enter_interactive(&cli, false));
         assert!(missing_non_interactive_args(&cli).is_empty());
+    }
+
+    #[test]
+    fn non_interactive_mode_parses_conversion_options() {
+        let cli = Cli::try_parse_from([
+            "image_converter",
+            "-i",
+            "input.png",
+            "-o",
+            "output.jpg",
+            "-f",
+            "jpeg",
+            "--max-width",
+            "800",
+            "--jpeg-background",
+            "#ffffff",
+        ])
+        .unwrap();
+
+        assert_eq!(cli.max_width, Some(800));
+        assert_eq!(cli.jpeg_background, Some(JpegBackground::white()));
     }
 }

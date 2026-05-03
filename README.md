@@ -11,8 +11,8 @@
 - **용량 비교**: 변환 전후 파일 크기 및 감소율 표시 (배치 모드는 합계까지)
 - **진행 상황 표시**: 실시간 진행률 표시
 - **품질 설정**: 1-100% 품질 조정 가능 (PNG 는 무손실이라 자동 무시)
-- **대화형 리사이즈**: 최대 가로 크기를 지정하면 비율을 유지하며 축소 (확대 없음)
-- **JPEG 배경색 선택**: 투명 PNG/WebP 를 JPEG 로 바꿀 때 흰색/검정/#RRGGBB 배경으로 합성
+- **리사이즈**: 최대 가로 크기를 지정하면 비율을 유지하며 축소 (확대 없음)
+- **JPEG 배경색 지정**: 투명 PNG/WebP 를 JPEG 로 바꿀 때 흰색/검정/#RRGGBB 배경으로 합성
 - **덮어쓰기 방지**: 기존 출력 파일을 보존 (단일 변환은 중단, 일괄 변환은 해당 파일 건너뜀)
 - **출력 확장자 검증**: 선택한 출력 형식과 파일 확장자가 다르면 변환 전 차단
 - **아름다운 UI**: 이모티콘과 색상으로 보기 좋은 출력
@@ -167,6 +167,12 @@ JPEG 출력에서는 투명 PNG/WebP 의 투명 영역을 배경색 위에 합�
 # JPEG 로 변환 (알파 채널이 있으면 자동 RGB 변환)
 ./target/release/image_converter -i icon.png -o icon.jpg -f jpeg -q 85
 
+# 최대 가로 크기를 1600px 로 축소 (원본보다 작을 때만 적용)
+./target/release/image_converter -i hero.png -o hero.webp -f webp --max-width 1600
+
+# JPEG 변환 시 투명 영역을 검정 배경으로 합성
+./target/release/image_converter -i logo.png -o logo.jpg -f jpg --jpeg-background black
+
 # TIFF/BMP 입력도 그대로 지원
 ./target/release/image_converter -i scan.tiff -o scan.webp -f webp -q 85
 ```
@@ -187,6 +193,12 @@ JPEG 출력에서는 투명 PNG/WebP 의 투명 영역을 배경색 위에 합�
 # 사용할 스레드 수 제한 (CLI 플래그)
 ./target/release/image_converter -i photos -o photos_webp -f webp -r -t 4
 
+# 폴더 전체 이미지를 최대 1200px 가로로 줄이며 변환
+./target/release/image_converter -i photos -o photos_webp -f webp -r --max-width 1200
+
+# 투명 이미지들을 JPEG 로 만들 때 흰색 배경으로 합성
+./target/release/image_converter -i icons -o icons_jpg -f jpeg -r --jpeg-background '#ffffff'
+
 # 환경변수로도 가능 (CLI 플래그가 우선)
 RAYON_NUM_THREADS=4 ./target/release/image_converter -i photos -o photos_webp -f webp -r
 ```
@@ -200,6 +212,8 @@ RAYON_NUM_THREADS=4 ./target/release/image_converter -i photos -o photos_webp -f
 - `-q, --quality <QUALITY>`: 변환 품질 1-100 (기본값: 90, **PNG 출력 시 무손실이라 무시됨**)
 - `-r, --recursive`: 디렉토리 입력 시 하위 폴더까지 재귀 변환
 - `-t, --threads <N>`: 디렉토리 모드에서 사용할 스레드 수 (1 이상, 미지정 시 `RAYON_NUM_THREADS` 또는 CPU 코어 수). 단일 파일 변환에는 영향 없음
+- `--max-width <PX>`: 최대 가로 크기. 원본보다 작을 때만 비율을 유지하며 축소
+- `--jpeg-background <COLOR>`: JPEG/JPG 출력 시 투명 영역 배경색 (`white`, `black`, `#RRGGBB`)
 
 ## 💡 예제 출력
 
