@@ -2,30 +2,30 @@
 
 ## 미출시
 
-- HEIC/HEIF 입력 디코딩을 지원합니다. 출력은 기존처럼 PNG/JPG/WebP/AVIF 범위를 유지합니다.
-- HEIC/HEIF 디코딩을 위해 `libheif-rs` 와 시스템 `libheif` 의존성을 추가했습니다.
+- 아직 없음.
 
-## 2.6.0 — AVIF 호환성 및 안정성 보강 (2026-05-03)
+## 2.6.0 — AVIF 호환성, HEIC 입력 및 안정성 보강 (2026-05-03)
 
-이번 릴리즈는 AVIF 디코딩 기반을 최신화하고, 변환 안정성 회귀 테스트를 보강한 배포입니다.
+이번 릴리즈는 AVIF 디코딩 기반을 최신화하고, HEIC/HEIF 입력 디코딩과 변환 안정성 회귀 테스트를 보강한 배포입니다.
 
 ### 주요 변경
 
 - `image` 0.25 계열로 업그레이드해 AVIF 입력의 10/12-bit 디코딩을 지원합니다.
 - AVIF 출력은 더 이상 8-bit 로 강제하지 않고 `ravif` 기본 설정을 사용합니다.
 - AVIF 입력 디코딩은 `image` 0.25 의 `avif-native` 기능을 사용하므로 `dav1d` 시스템 의존성은 유지됩니다.
+- HEIC/HEIF 입력 디코딩을 지원합니다. 출력은 기존처럼 PNG/JPG/WebP/AVIF 범위를 유지합니다.
+- HEIC/HEIF 디코딩을 위해 `libheif-rs` 와 시스템 `libheif` 의존성을 추가했습니다.
 - 손상 이미지 입력과 큰 이미지 리사이즈 흐름의 안정성 회귀 테스트를 추가했습니다.
 
 ### 지원 범위
 
-- 입력: PNG, JPG/JPEG, WebP, AVIF(8/10/12-bit), TIFF/TIF, BMP, ICO
+- 입력: PNG, JPG/JPEG, WebP, AVIF(8/10/12-bit), HEIC/HEIF, TIFF/TIF, BMP, ICO
 - 출력: PNG, JPG/JPEG, WebP, AVIF
 - PDF 입력은 장기 보류합니다. 페이지 선택, DPI, 다중 페이지 출력 이름 규칙이 필요한 별도 문서 변환 기능으로 나중에 설계합니다.
-- HEIC 입력은 `libheif` 계열 시스템 의존성이 필요해 별도 큰 작업으로 다룹니다.
 
 ### 검증
 
-- `./scripts/check.sh` 로 포맷팅, Clippy, 테스트 87개를 통과시키는 것을 기준으로 합니다.
+- `./scripts/check.sh` 로 포맷팅, Clippy, 테스트 88개를 통과시키는 것을 기준으로 합니다.
 
 ## 2.5.0 — 대화형 이미지 변환 마무리 (2026-05-01)
 
