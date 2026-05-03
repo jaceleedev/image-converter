@@ -12,6 +12,15 @@
 
 ## 최근 작업 로그
 
+### 2026-05-03 — 배포/설치 경험 정리
+
+- `docs/releasing.md` 추가 — 로컬 Docker 검증 후 push 하는 흐름, Docker 실행, 로컬 설치, release 빌드/태그 체크리스트 정리
+- README 설치 섹션에서 Docker 실행과 호스트 로컬 설치를 분리하고, Docker release 바이너리가 컨테이너 안의 Linux 바이너리임을 명시
+- `cargo install --path . --locked` 기반 로컬 설치 경로와 `~/.cargo/bin` PATH 확인 안내 추가
+- docs/README.md / docs/architecture.md / docs/testing.md / docs/release-notes.md 갱신
+- `./scripts/check.sh` 성공 — fmt 통과, Clippy 경고 없음, 테스트 92개 통과
+- Docker release 빌드와 버전 출력 확인 — `image_converter 2.6.0`
+
 ### 2026-05-03 — 비대화형 배치 실패 종료 코드 보강
 
 - 비대화형 명령줄 모드에서 일괄 변환 요약의 `failed > 0` 을 `BatchPartialFailure` 에러로 매핑해 종료 코드 1로 끝나도록 변경

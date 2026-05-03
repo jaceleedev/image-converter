@@ -22,6 +22,8 @@ tests/
 
 ## 테스트 실행 방법
 
+릴리즈 전 전체 검증과 설치 경로 확인은 `docs/releasing.md` 의 체크리스트도 함께 참고합니다.
+
 ### Docker 로 실행 (추천)
 ```bash
 docker compose build
@@ -52,7 +54,7 @@ docker compose run --rm dev cargo test --release
 
 ### 로컬 Rust 로 실행
 
-호스트에 Rust 와 시스템 의존성(`nasm`, `dav1d`, `pkg-config`) 을 직접 설치한 경우에는 같은 검사를 로컬 Cargo 로 실행할 수 있습니다.
+호스트에 Rust 와 시스템 의존성(`nasm`, `dav1d`, `libheif`, `pkg-config`) 을 직접 설치한 경우에는 같은 검사를 로컬 Cargo 로 실행할 수 있습니다.
 
 ```bash
 ./scripts/check.sh --local

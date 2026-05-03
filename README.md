@@ -22,6 +22,7 @@
 - [에이전트 가이드](AGENTS.md): Codex/Claude Code 등 에이전트 공통 작업 규칙
 - [개발 문서 인덱스](docs/README.md): 개발 문서 목록
 - [릴리즈 노트](docs/release-notes.md): 버전별 주요 변경 사항
+- [배포와 설치 가이드](docs/releasing.md): 로컬 설치, Docker 실행, 릴리즈 전 체크리스트
 - [프로젝트 구조](docs/architecture.md): 모듈별 책임과 의존성 흐름
 - [테스트 가이드](docs/testing.md): 테스트 실행법과 테스트 목록
 - [작업 메모리](docs/memory.md): 최근 작업 로그와 결정 기록
@@ -76,7 +77,7 @@ docker compose run --rm dev
 
 호스트에 Rust 와 시스템 의존성을 직접 설치한 경우에는 `./scripts/check.sh --local` 로 같은 검사를 로컬 Cargo 로 실행할 수 있습니다.
 
-`target` 과 Cargo registry/git 캐시는 Docker named volume 에 저장되어 호스트 프로젝트 디렉토리를 빌드 산출물로 어지럽히지 않습니다. 그래서 기본 흐름은 `cargo run` 도 컨테이너 안에서 실행하는 방식입니다. 완전히 새로 받고 싶으면 다음처럼 볼륨까지 지웁니다.
+`target` 과 Cargo registry/git 캐시는 Docker named volume 에 저장되어 호스트 프로젝트 디렉토리를 빌드 산출물로 어지럽히지 않습니다. 그래서 기본 흐름은 `cargo run` 도 컨테이너 안에서 실행하는 방식입니다. Docker 에서 만든 release 바이너리는 컨테이너 안의 Linux 바이너리이므로 macOS 호스트 설치 파일로 보지 않습니다. 호스트에서 바로 실행하려면 아래 로컬 설치 경로를 사용하세요. Docker 캐시를 완전히 새로 받고 싶으면 다음처럼 볼륨까지 지웁니다.
 
 ```bash
 docker compose down -v
@@ -113,6 +114,16 @@ RUST_IMAGE=rust:1.94-trixie docker compose build
    ```bash
    cargo build --release
    ```
+
+5. 전역 명령으로 설치하려면 `cargo install` 을 사용합니다:
+
+   ```bash
+   cargo install --path . --locked
+   image_converter --version
+   image_converter
+   ```
+
+   `cargo install` 은 기본적으로 `~/.cargo/bin/image_converter` 에 설치합니다. 명령을 찾지 못하면 `~/.cargo/bin` 이 `PATH` 에 포함되어 있는지 확인하세요.
 
 ## 🚀 사용법
 
@@ -255,7 +266,7 @@ RAYON_NUM_THREADS=4 ./target/release/image_converter -i photos -o photos_webp -f
 자주 사용하는 명령어를 alias로 설정하여 편리하게 사용할 수 있습니다. 예를 들어, zsh를 사용하는 경우 `~/.zshrc` 파일에 다음을 추가하세요:
 
 ```bash
-alias imgconv='~/image_converter/target/release/image_converter'
+alias imgconv='image_converter'
 # 명령줄 모드를 따로 쓰고 싶을 때만 옵션을 붙이면 됨
 ```
 
