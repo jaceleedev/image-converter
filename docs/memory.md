@@ -12,6 +12,14 @@
 
 ## 최근 작업 로그
 
+### 2026-05-03 — HEIC/HEIF 입력 지원
+
+- `libheif-rs` 2.7.0 을 `v1_17` + `image` feature 로 추가해 Debian trixie 의 `libheif` 1.19 계열과 호환되게 설정
+- `src/input.rs` 추가 — `image` 크레이트에 HEIC/HEIF 디코딩 훅을 `Once` 로 한 번만 등록. AVIF 훅은 기존 `image` 0.25 `avif-native` 경로를 유지하기 위해 등록하지 않음
+- 단일 변환 로딩 전에 추가 디코더를 등록하고, 배치 입력 화이트리스트에 `.heic` / `.heif` 추가
+- Docker 개발 이미지에 `libheif-dev`, HEIC 테스트 fixture 생성을 위한 `libheif-plugin-x265` 추가
+- HEIC → PNG 단일 변환 테스트와 혼합 입력 배치 테스트의 HEIC 케이스 추가 — 테스트 수 88개 기준
+
 ### 2026-05-03 — 2.6.0 릴리즈 준비
 
 - `Cargo.toml` 패키지 버전을 `2.6.0` 으로 올림
@@ -448,13 +456,14 @@
 - [x] **`image` 0.25 업그레이드** — 완료. 10/12-bit AVIF 디코딩 지원, `ImageOutputFormat` 제거 대응, AVIF 8-bit 강제 제거.
 - [x] **손상 입력/큰 이미지 안정성 테스트** — 완료. 단일 손상 파일 출력 미생성, 배치 손상 파일 실패 격리, 1280x720 리사이즈 흐름 검증.
 - [x] **2.6.0 릴리즈 준비** — 완료. 버전 bump + 릴리즈 노트 정리. AVIF 호환성/안정성 테스트 보강 범위로 정리.
+- [x] **HEIC 입력** — 완료. `libheif-rs` + `libheif` 기반으로 HEIC/HEIF 입력 디코딩을 지원하고, 출력은 기존 PNG/JPG/WebP/AVIF 범위를 유지.
 - [ ] **PDF 입력 (장기 보류)** — 사용자가 정말 나중에 하기로 결정. 첫 페이지만 렌더링할지, 페이지 범위를 여러 파일로 내보낼지, 기본 DPI를 어떻게 둘지 먼저 정해야 하는 별도 기능.
-- [ ] **HEIC 입력** — `libheif` 시스템 의존성 + `libheif-rs` 등 외부 크레이트. 부담 큼.
 
 ## 환경 메모
 
 - 빌드 시 시스템 도구/라이브러리가 필요:
   - `nasm` — rav1e (AVIF 인코딩) 빌드용
   - `libdav1d-dev` (Ubuntu/WSL) / `dav1d` (macOS) — `image` 0.25 `avif-native` AVIF 디코딩용. `pkg-config` 로 동적 링크
-- 한 줄 설치: `sudo apt-get install -y nasm libdav1d-dev pkg-config` (Ubuntu/WSL) / `brew install nasm dav1d pkg-config` (macOS)
-- Docker 개발 환경은 위 의존성을 이미지 안에 설치하므로 로컬 OS 에 Rust/nasm/dav1d/pkg-config 를 직접 설치하지 않아도 됨.
+  - `libheif-dev` (Ubuntu/WSL) / `libheif` (macOS) — HEIC/HEIF 디코딩용. Docker 테스트 fixture 생성에는 `libheif-plugin-x265` 도 설치
+- 한 줄 설치: `sudo apt-get install -y nasm libdav1d-dev libheif-dev libheif-plugin-x265 pkg-config` (Ubuntu/WSL) / `brew install nasm dav1d libheif pkg-config` (macOS)
+- Docker 개발 환경은 위 의존성을 이미지 안에 설치하므로 로컬 OS 에 Rust/nasm/dav1d/libheif/pkg-config 를 직접 설치하지 않아도 됨.

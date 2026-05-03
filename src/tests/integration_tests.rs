@@ -7,7 +7,56 @@ use crate::{
 use crate::{test_description, test_step, test_success};
 use image::{GenericImageView, Rgba, RgbaImage};
 use std::fs;
+use std::path::Path;
 use tempfile::TempDir;
+
+fn create_test_heic_image(
+    path: &Path,
+    width: u32,
+    height: u32,
+) -> Result<(), Box<dyn std::error::Error>> {
+    use libheif_rs::{
+        Channel, ColorSpace, CompressionFormat, EncoderQuality, HeifContext, Image, LibHeif,
+        RgbChroma,
+    };
+
+    let mut image = Image::new(width, height, ColorSpace::Rgb(RgbChroma::Rgb))?;
+    image.create_plane(Channel::Interleaved, width, height, 24)?;
+
+    let planes = image.planes_mut();
+    let plane = planes
+        .interleaved
+        .ok_or_else(|| std::io::Error::other("HEIC 테스트 평면 생성 실패"))?;
+    for y in 0..height {
+        let mut row_start = plane.stride * y as usize;
+        for x in 0..width {
+            let checker = if (x + y) % 2 == 0 { 240 } else { 24 };
+            plane.data[row_start] = checker;
+            plane.data[row_start + 1] = (x * 255 / width.max(1)) as u8;
+            plane.data[row_start + 2] = (y * 255 / height.max(1)) as u8;
+            row_start += 3;
+        }
+    }
+
+    let lib_heif = LibHeif::new();
+    let mut context = HeifContext::new()?;
+    let mut encoder = lib_heif
+        .encoder_for_format(CompressionFormat::Hevc)
+        .map_err(|e| {
+            std::io::Error::other(format!("HEVC 테스트 인코더를 찾을 수 없습니다: {e}"))
+        })?;
+    encoder.set_quality(EncoderQuality::LossLess)?;
+    context.encode_image(&image, &mut encoder, None)?;
+    let path = path.to_str().ok_or_else(|| {
+        std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "테스트 경로는 UTF-8이어야 함",
+        )
+    })?;
+    context.write_to_file(path)?;
+
+    Ok(())
+}
 
 #[test]
 fn test_webp_conversion() -> Result<(), Box<dyn std::error::Error>> {
@@ -819,7 +868,9 @@ fn test_bmp_input_to_jpeg() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn test_batch_mixed_input_formats() -> Result<(), Box<dyn std::error::Error>> {
     test_description!("일괄 변환에서 다양한 입력 포맷 혼합 테스트");
-    test_step!("PNG + WebP + AVIF + TIFF + BMP 가 한 디렉토리에 있을 때 모두 PNG 로 변환되는지");
+    test_step!(
+        "PNG + WebP + AVIF + HEIC + TIFF + BMP 가 한 디렉토리에 있을 때 모두 PNG 로 변환되는지"
+    );
 
     let temp_dir = TempDir::new()?;
     let input_dir = temp_dir.path().join("mixed_input");
@@ -846,7 +897,8 @@ fn test_batch_mixed_input_formats() -> Result<(), Box<dyn std::error::Error>> {
         OutputFormat::Avif,
         85.0,
     )?;
-    test_success!("혼합 입력 5개 (PNG/TIFF/BMP/WebP/AVIF) 준비 완료");
+    create_test_heic_image(&input_dir.join("f.heic"), 32, 32)?;
+    test_success!("혼합 입력 6개 (PNG/TIFF/BMP/WebP/AVIF/HEIC) 준비 완료");
 
     let summary = convert_directory(
         input_dir.to_str().unwrap(),
@@ -857,14 +909,15 @@ fn test_batch_mixed_input_formats() -> Result<(), Box<dyn std::error::Error>> {
         None,
     )?;
 
-    assert_eq!(summary.total_files, 5, "5개 파일이 처리 대상");
-    assert_eq!(summary.succeeded, 5, "5개 모두 성공");
+    assert_eq!(summary.total_files, 6, "6개 파일이 처리 대상");
+    assert_eq!(summary.succeeded, 6, "6개 모두 성공");
     assert!(output_dir.join("a.png").exists());
     assert!(output_dir.join("b.png").exists());
     assert!(output_dir.join("c.png").exists());
     assert!(output_dir.join("d.png").exists());
     assert!(output_dir.join("e.png").exists());
-    test_success!("5종 입력 포맷 모두 PNG 로 변환 성공");
+    assert!(output_dir.join("f.png").exists());
+    test_success!("6종 입력 포맷 모두 PNG 로 변환 성공");
 
     Ok(())
 }
@@ -957,6 +1010,37 @@ fn test_avif_input_to_png() -> Result<(), Box<dyn std::error::Error>> {
         "PNG 매직 바이트 확인"
     );
     test_success!("AVIF → PNG 역변환 + 시그니처 확인");
+
+    Ok(())
+}
+
+#[test]
+fn test_heic_input_to_png() -> Result<(), Box<dyn std::error::Error>> {
+    test_description!("HEIC → PNG 역변환 테스트");
+    test_step!("libheif-rs 디코딩 훅으로 HEIC 파일을 PNG 로 디코딩하는지 확인");
+
+    let temp_dir = TempDir::new()?;
+    let heic_path = temp_dir.path().join("seed.heic");
+    let png_path = temp_dir.path().join("out.png");
+    create_test_heic_image(&heic_path, 32, 24)?;
+    test_success!("HEIC 시드 파일 생성");
+
+    convert_image_silent(
+        heic_path.to_str().unwrap(),
+        png_path.to_str().unwrap(),
+        OutputFormat::Png,
+        100.0,
+    )?;
+
+    assert!(png_path.exists(), "PNG 파일이 생성되어야 함");
+    assert_eq!(image::open(&png_path)?.dimensions(), (32, 24));
+    let bytes = fs::read(&png_path)?;
+    assert_eq!(
+        &bytes[0..4],
+        &[0x89, 0x50, 0x4E, 0x47],
+        "PNG 매직 바이트 확인"
+    );
+    test_success!("HEIC → PNG 변환 + 크기/시그니처 확인");
 
     Ok(())
 }

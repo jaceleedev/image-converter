@@ -232,25 +232,29 @@ cargo test --release
     - BMP 입력이 디코딩되어 JPEG 로 변환되는지 확인
 
 21. **`test_batch_mixed_input_formats`**
-    - PNG + WebP + AVIF + TIFF + BMP 5종이 한 디렉토리에 섞여 있을 때 모두 PNG 로 일괄 변환되는지 확인 (배치 모드의 입력 화이트리스트 + 다중 디코더 결합 검증)
+    - PNG + WebP + AVIF + HEIC + TIFF + BMP 6종이 한 디렉토리에 섞여 있을 때 모두 PNG 로 일괄 변환되는지 확인 (배치 모드의 입력 화이트리스트 + 다중 디코더 결합 검증)
 
 22. **`test_avif_input_to_png`**
     - AVIF → PNG 라운드트립이 동작하는지 확인 (`image` 0.25 `avif-native` 디코딩 + `ravif` 기본 인코딩)
     - 출력 파일이 PNG 매직 바이트로 시작하는지 검증
 
-23. **`test_batch_with_explicit_threads`**
+23. **`test_heic_input_to_png`**
+    - HEIC → PNG 변환이 동작하는지 확인 (`libheif-rs` 디코딩 훅 + `image::open` 흐름)
+    - 출력 크기와 PNG 매직 바이트를 함께 검증
+
+24. **`test_batch_with_explicit_threads`**
     - `convert_directory()` 의 `threads: Option<usize>` 인자 검증
     - `None` (기본) 과 `Some(1)` (단일 스레드) 두 모드에서 같은 입력에 대해 같은 성공 개수가 나오는지 확인 (스레드 수에 결과가 영향받지 않아야 함)
 
-24. **`test_jpeg_input_to_webp`**
+25. **`test_jpeg_input_to_webp`**
     - JPEG 입력을 WebP 로 변환하는 명시적 단일 케이스
     - 출력 파일이 RIFF/WEBP 시그니처로 시작하는지 검증
 
-25. **`test_jpeg_input_to_png`**
+26. **`test_jpeg_input_to_png`**
     - JPEG 입력을 PNG 로 변환 (JPEG 디코더 + PNG 인코더 결합)
     - 출력이 PNG 매직 바이트(`89 50 4E 47`) 로 시작하는지 검증
 
-26. **`test_jpg_extension_input`**
+27. **`test_jpg_extension_input`**
     - 입력 측 `.jpg` 확장자도 JPEG 디코더로 정상 인식되는지 확인 (`.jpg`/`.jpeg` 양쪽 별칭 회귀 방지)
 
 ### 🛠️ CLI 인자 파서 단위 테스트 (`src/main.rs`)
@@ -408,7 +412,7 @@ fn test_new_feature() {
 
 ## 테스트 커버리지
 
-현재 테스트는 다음 영역을 커버합니다 (총 87개):
+현재 테스트는 다음 영역을 커버합니다 (총 88개):
 - ✅ 파일 크기 포맷팅
 - ✅ 출력 요약 라벨 (PNG 무손실 / 손실 포맷 품질 표시)
 - ✅ 출력 포맷별 허용 확장자 매칭
@@ -427,8 +431,8 @@ fn test_new_feature() {
 - ✅ 빈 디렉토리 처리
 - ✅ 에러 처리 (지원하지 않는 형식, 존재하지 않는 파일, 기존 출력 파일)
 - ✅ PNG / JPEG 출력 (WebP → PNG 역변환, AVIF → PNG 역변환, PNG → JPEG, jpg 별칭)
-- ✅ TIFF / BMP / AVIF 입력 디코딩
-- ✅ 혼합 입력 포맷 일괄 변환 (PNG + WebP + AVIF + TIFF + BMP → PNG)
+- ✅ TIFF / BMP / AVIF / HEIC 입력 디코딩
+- ✅ 혼합 입력 포맷 일괄 변환 (PNG + WebP + AVIF + HEIC + TIFF + BMP → PNG)
 - ✅ 명시적 스레드 수 옵션 (`threads=None` vs `threads=Some(1)` 결과 일관성)
 - ✅ JPG/JPEG 단일 입력 (jpeg→webp, jpeg→png, .jpg 확장자 별칭)
 - ✅ CLI 인자 파서 (`--quality` 1.0~100.0 범위, `--threads` ≥ 1, `--max-width` ≥ 1, `--jpeg-background`, 출력 포맷 허용값, 대화형 기본 실행, 비대화형 필수 인자 검증)

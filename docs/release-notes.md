@@ -2,7 +2,8 @@
 
 ## 미출시
 
-- 아직 없음
+- HEIC/HEIF 입력 디코딩을 지원합니다. 출력은 기존처럼 PNG/JPG/WebP/AVIF 범위를 유지합니다.
+- HEIC/HEIF 디코딩을 위해 `libheif-rs` 와 시스템 `libheif` 의존성을 추가했습니다.
 
 ## 2.6.0 — AVIF 호환성 및 안정성 보강 (2026-05-03)
 

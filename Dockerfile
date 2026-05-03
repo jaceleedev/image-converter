@@ -8,6 +8,8 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         ca-certificates \
         libdav1d-dev \
+        libheif-dev \
+        libheif-plugin-x265 \
         nasm \
         pkg-config \
     && rm -rf /var/lib/apt/lists/*
