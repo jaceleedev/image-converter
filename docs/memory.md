@@ -12,6 +12,17 @@
 
 ## 최근 작업 로그
 
+### 2026-05-03 — 비대화형 배치 실패 종료 코드 보강
+
+- 비대화형 명령줄 모드에서 일괄 변환 요약의 `failed > 0` 을 `BatchPartialFailure` 에러로 매핑해 종료 코드 1로 끝나도록 변경
+- 라이브러리 `convert_directory*` API 는 기존처럼 모든 파일을 처리하고 `BatchSummary` 를 반환하므로, 처리 계속/요약 반환 의미는 유지
+- 기존 출력 파일로 인한 `skipped` 는 실패로 보지 않고 성공 종료 정책 유지
+- 실제 바이너리 통합 테스트 2개 추가
+  - `non_interactive_batch_exits_nonzero_when_any_file_fails`
+  - `non_interactive_batch_skipped_outputs_still_succeed`
+- `./scripts/check.sh` 성공 — fmt 통과, Clippy 경고 없음, 테스트 92개 통과
+- README / docs/architecture.md / docs/testing.md / docs/release-notes.md 갱신
+
 ### 2026-05-03 — HEIC/HEIF 입력 지원
 
 - `libheif-rs` 2.7.0 을 `v1_17` + `image` feature 로 추가해 Debian trixie 의 `libheif` 1.19 계열과 호환되게 설정
@@ -457,6 +468,7 @@
 - [x] **손상 입력/큰 이미지 안정성 테스트** — 완료. 단일 손상 파일 출력 미생성, 배치 손상 파일 실패 격리, 1280x720 리사이즈 흐름 검증.
 - [x] **2.6.0 릴리즈 준비** — 완료. 버전 bump + 릴리즈 노트 정리. AVIF 호환성/안정성 테스트 보강 범위로 정리.
 - [x] **HEIC 입력** — 완료. `libheif-rs` + `libheif` 기반으로 HEIC/HEIF 입력 디코딩을 지원하고, 출력은 기존 PNG/JPG/WebP/AVIF 범위를 유지.
+- [x] **비대화형 배치 실패 종료 코드** — 완료. 실패 파일이 있으면 처리는 끝까지 하되 CLI 종료 코드는 1로 반환하고, 건너뜀만 있는 경우는 성공으로 유지.
 - [ ] **PDF 입력 (장기 보류)** — 사용자가 정말 나중에 하기로 결정. 첫 페이지만 렌더링할지, 페이지 범위를 여러 파일로 내보낼지, 기본 DPI를 어떻게 둘지 먼저 정해야 하는 별도 기능.
 
 ## 환경 메모

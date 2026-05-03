@@ -207,6 +207,8 @@ JPEG 출력에서는 투명 PNG/WebP 의 투명 영역을 배경색 위에 합�
 RAYON_NUM_THREADS=4 ./target/release/image_converter -i photos -o photos_webp -f webp -r
 ```
 
+일괄 변환은 한 파일이 실패해도 나머지 파일 처리를 계속합니다. 다만 자동화에서 실패를 놓치지 않도록, 비대화형 명령줄 모드는 최종 요약에서 실패 파일이 1개 이상이면 종료 코드 1로 끝납니다. 기존 출력 파일 때문에 건너뛴 항목은 실패로 보지 않습니다.
+
 ## 📊 옵션
 
 - `-I, --interactive`: 대화형 모드 명시 실행 (인자 없이 실행해도 대화형 모드로 시작)

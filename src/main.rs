@@ -4,7 +4,8 @@ use std::path::Path;
 
 use image_converter::{
     convert_directory_with_conversion_options, convert_image_with_conversion_options,
-    interactive::interactive_mode, ConversionOptions, JpegBackground, OutputFormat, ResizeOptions,
+    interactive::interactive_mode, BatchSummary, ConversionOptions, ConverterError, JpegBackground,
+    OutputFormat, ResizeOptions,
 };
 
 fn parse_quality(s: &str) -> Result<f32, String> {
@@ -124,6 +125,16 @@ fn missing_non_interactive_args(cli: &Cli) -> Vec<&'static str> {
     missing
 }
 
+fn batch_summary_to_result(summary: BatchSummary) -> image_converter::Result<()> {
+    if summary.failed > 0 {
+        Err(ConverterError::BatchPartialFailure {
+            failed: summary.failed,
+        })
+    } else {
+        Ok(())
+    }
+}
+
 fn main() {
     let invoked_without_args = std::env::args_os().len() == 1;
     let cli = Cli::parse();
@@ -165,7 +176,7 @@ fn main() {
                 cli.threads,
                 conversion_options,
             )
-            .map(|_| ())
+            .and_then(batch_summary_to_result)
         } else {
             convert_image_with_conversion_options(
                 &input,
@@ -376,5 +387,37 @@ mod tests {
 
         assert_eq!(cli.max_width, Some(800));
         assert_eq!(cli.jpeg_background, Some(JpegBackground::white()));
+    }
+
+    #[test]
+    fn batch_summary_to_result_accepts_success_and_skips() {
+        let summary = BatchSummary {
+            total_files: 2,
+            succeeded: 1,
+            failed: 0,
+            skipped: 1,
+            total_input_size: 100,
+            total_output_size: 50,
+        };
+
+        assert!(batch_summary_to_result(summary).is_ok());
+    }
+
+    #[test]
+    fn batch_summary_to_result_rejects_partial_failures() {
+        let summary = BatchSummary {
+            total_files: 3,
+            succeeded: 2,
+            failed: 1,
+            skipped: 0,
+            total_input_size: 100,
+            total_output_size: 50,
+        };
+
+        let err = batch_summary_to_result(summary).unwrap_err();
+        assert!(matches!(
+            err,
+            ConverterError::BatchPartialFailure { failed: 1 }
+        ));
     }
 }
