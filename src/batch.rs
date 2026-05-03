@@ -34,7 +34,19 @@ fn is_supported_image(path: &Path) -> bool {
             .and_then(|e| e.to_str())
             .map(|s| s.to_lowercase())
             .as_deref(),
-        Some("png" | "jpg" | "jpeg" | "webp" | "avif" | "tiff" | "tif" | "bmp" | "ico")
+        Some(
+            "png"
+                | "jpg"
+                | "jpeg"
+                | "webp"
+                | "avif"
+                | "heic"
+                | "heif"
+                | "tiff"
+                | "tif"
+                | "bmp"
+                | "ico",
+        )
     )
 }
 
@@ -182,7 +194,7 @@ pub fn convert_directory_with_conversion_options(
 
     if files.is_empty() {
         println!(
-            "\n{} 변환 가능한 이미지(.png/.jpg/.jpeg/.webp/.avif/.tiff/.bmp/.ico)가 없습니다.",
+            "\n{} 변환 가능한 이미지(.png/.jpg/.jpeg/.webp/.avif/.heic/.heif/.tiff/.bmp/.ico)가 없습니다.",
             "⚠️".bright_yellow()
         );
         return Ok(BatchSummary {

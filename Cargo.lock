@@ -480,6 +480,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "34aa73646ffb006b8f5147f3dc182bd4bcb190227ce861fc4a4844bf8e3cb2c0"
 
 [[package]]
+name = "enumn"
+version = "0.1.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2f9ed6b3789237c8a0c1c505af1c7eb2c560df6186f01b098c3a1064ea532f38"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "equator"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -569,6 +580,12 @@ dependencies = [
  "crc32fast",
  "miniz_oxide",
 ]
+
+[[package]]
+name = "four-cc"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "795cbfc56d419a7ce47ccbb7504dd9a5b7c484c083c356e797de08bd988d9629"
 
 [[package]]
 name = "getrandom"
@@ -674,6 +691,7 @@ dependencies = [
  "dialoguer",
  "image",
  "indicatif",
+ "libheif-rs",
  "ravif",
  "rayon",
  "rexpect",
@@ -784,6 +802,33 @@ checksum = "5037190e1f70cbeef565bd267599242926f724d3b8a9f510fd7e0b540cfa4404"
 dependencies = [
  "arbitrary",
  "cc",
+]
+
+[[package]]
+name = "libheif-rs"
+version = "2.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "39c4e7037b43e1431961745e5c4004eedae3735a4fddd687810ff9d70beb9882"
+dependencies = [
+ "cfg-if",
+ "enumn",
+ "four-cc",
+ "image",
+ "libc",
+ "libheif-sys",
+]
+
+[[package]]
+name = "libheif-sys"
+version = "5.2.0+1.21.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "107c0d813a0cf5ddf7af2c58a60611f18efdb2830e84d9b37580fb20e6e27a2b"
+dependencies = [
+ "cfg-if",
+ "libc",
+ "system-deps",
+ "vcpkg",
+ "walkdir",
 ]
 
 [[package]]
@@ -1515,6 +1560,12 @@ dependencies = [
  "num-traits",
  "wasm-bindgen",
 ]
+
+[[package]]
+name = "vcpkg"
+version = "0.2.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
 
 [[package]]
 name = "version-compare"

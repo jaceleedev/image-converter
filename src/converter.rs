@@ -12,6 +12,7 @@ use webp::Encoder as WebpEncoder;
 
 use crate::error::{ConverterError, Result};
 use crate::format::OutputFormat;
+use crate::input::register_extra_decoders;
 
 /// 단일 이미지 변환 결과 통계
 #[derive(Debug)]
@@ -262,6 +263,7 @@ pub fn convert_image_silent_with_conversion_options(
     validate_output_extension(output_path, format)?;
     let input_size = fs::metadata(input_path)?.len();
     ensure_output_available(output_path)?;
+    register_extra_decoders();
     let img = image::open(input_path)?;
     let (width, height) = img.dimensions();
     let img = resize_image(img, options);
@@ -342,6 +344,7 @@ pub fn convert_image_with_conversion_options(
 
     pb.set_position(20);
     pb.set_message("이미지 로딩 중...");
+    register_extra_decoders();
     let img = image::open(input_path)?;
     let (width, height) = img.dimensions();
 

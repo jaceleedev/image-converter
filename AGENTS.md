@@ -5,7 +5,7 @@
 ## 프로젝트 요약
 
 - Rust 2021 기반 이미지 변환 CLI
-- 입력: PNG, JPG/JPEG, WebP, AVIF(8/10/12-bit), TIFF/TIF, BMP, ICO
+- 입력: PNG, JPG/JPEG, WebP, AVIF(8/10/12-bit), HEIC/HEIF, TIFF/TIF, BMP, ICO
 - 출력: PNG, JPG/JPEG, WebP, AVIF
 - 모드: 단일 파일 변환, 디렉토리 일괄 변환, 대화형 모드
 - AVIF 인코딩은 `ravif` 기본 설정을 사용하며, `image` 0.25 기반 라운드트립과 호환
@@ -25,7 +25,7 @@
 
 ## 개발 환경
 
-Docker 사용을 기본으로 합니다. 로컬 OS 에 Rust, `nasm`, `dav1d`, `pkg-config` 를 직접 설치하지 않아도 됩니다.
+Docker 사용을 기본으로 합니다. 로컬 OS 에 Rust, `nasm`, `dav1d`, `libheif`, `pkg-config` 를 직접 설치하지 않아도 됩니다.
 
 ```bash
 docker compose build
@@ -34,7 +34,7 @@ docker compose run --rm dev cargo build --release
 docker compose run --rm dev cargo run --release
 ```
 
-로컬 Rust 를 쓸 때는 AVIF 인코딩용 `nasm`, AVIF 디코딩용 `libdav1d`/`dav1d`, `pkg-config` 가 필요합니다. 자세한 설치법은 `README.md` 를 참고하세요.
+로컬 Rust 를 쓸 때는 AVIF 인코딩용 `nasm`, AVIF 디코딩용 `libdav1d`/`dav1d`, HEIC/HEIF 디코딩용 `libheif`, `pkg-config` 가 필요합니다. 자세한 설치법은 `README.md` 를 참고하세요.
 
 ## 코드 컨벤션
 

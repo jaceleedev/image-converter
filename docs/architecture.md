@@ -7,7 +7,7 @@ image_converter/
 ├── .gitignore              # Git 무시 파일 설정
 ├── .dockerignore           # Docker 빌드 컨텍스트 제외 파일
 ├── AGENTS.md               # 에이전트 공통 작업 규칙
-├── Dockerfile              # Rust + nasm + dav1d 개발 컨테이너 이미지
+├── Dockerfile              # Rust + nasm + dav1d + libheif 개발 컨테이너 이미지
 ├── docker-compose.yml      # 개발/테스트용 컨테이너 실행 설정
 ├── Cargo.toml              # Rust 프로젝트 설정 및 의존성
 ├── README.md               # 프로젝트 사용 가이드
@@ -26,6 +26,7 @@ image_converter/
     ├── lib.rs              # 라이브러리 루트 - 공개 API re-export
     ├── error.rs            # ConverterError + Result 타입 (thiserror 기반)
     ├── format.rs           # OutputFormat enum + 출력 포맷 파싱/표시 헬퍼
+    ├── input.rs            # image 크레이트 추가 입력 디코더 등록
     ├── converter.rs        # 단일 파일 변환 + 인코딩 헬퍼
     ├── batch.rs            # 디렉토리 일괄 변환 (재귀 옵션, 스레드 수 명시 가능)
     ├── interactive.rs      # 대화형 모드 (단일/디렉토리)
@@ -64,6 +65,12 @@ image_converter/
 - 확장자 문자열(`as_str`) 과 표시명(`display_name`) 헬퍼 제공
 - 출력 경로 검증용 허용 확장자 헬퍼 제공 (`.jpg`/`.jpeg` 는 JPEG 포맷에서 모두 허용)
 
+### `input.rs` (추가 입력 디코더)
+
+- `image` 크레이트 기본 디코더 밖의 입력 포맷을 등록
+- 현재는 `libheif-rs` 의 `image` 통합 훅으로 HEIC/HEIF 디코더를 한 번만 등록 (`std::sync::Once`)
+- AVIF 는 기존 `image` 0.25 `avif-native` 경로를 유지하기 위해 `libheif-rs` 의 AVIF 훅은 등록하지 않음
+
 ### `converter.rs` (단일 변환 비즈니스 로직)
 
 - `encode_to`: 메모리 이미지를 WebP/AVIF/PNG/JPG/JPEG 바이트로 인코딩 (내부 헬퍼)
@@ -75,6 +82,7 @@ image_converter/
 - `convert_image_silent`: 출력 없는 변환 (`ConvertStats` 반환). 배치 모드와 테스트에서 사용
 - `convert_image_with_options` / `convert_image_silent_with_options`: `ResizeOptions` 같은 변환 전처리 옵션을 적용할 때 사용
 - `convert_image_with_conversion_options` / `convert_image_silent_with_conversion_options`: `ConversionOptions` 로 리사이즈와 JPEG 배경색을 함께 전달할 때 사용
+- 입력 로딩 전 `register_extra_decoders()` 를 호출해 HEIC/HEIF 입력도 `image::open` 흐름으로 디코딩
 - 두 함수 모두 동일한 내부 인코딩 헬퍼를 호출 (코드 중복 제거)
 - 리사이즈 옵션은 인코딩 전에 적용하며, 최대 가로 크기보다 큰 이미지만 비율 유지 축소 (`Lanczos3`, 확대 없음)
 - JPEG 배경색 옵션은 JPEG 인코딩 직전에 적용하며, 기본 API 에서는 기존 동작을 유지하고 대화형 모드/CLI 옵션에서만 값을 전달
@@ -85,7 +93,7 @@ image_converter/
 ### `batch.rs` (디렉토리 일괄 변환)
 
 - `convert_directory`: 입력 디렉토리에서 지원 포맷만 골라 **rayon 으로 병렬** 변환
-  - 입력 화이트리스트: `png`/`jpg`/`jpeg`/`webp`/`avif`/`tiff`/`tif`/`bmp`/`ico`
+  - 입력 화이트리스트: `png`/`jpg`/`jpeg`/`webp`/`avif`/`heic`/`heif`/`tiff`/`tif`/`bmp`/`ico`
   - 시그니처 끝의 `threads: Option<usize>` 인자로 스레드 수 명시 가능. `None` 이면 rayon 전역 풀 (= `RAYON_NUM_THREADS` 또는 CPU 코어 수), `Some(n)` 이면 `ThreadPoolBuilder::new().num_threads(n).build()` 로 local pool 만들고 `pool.install(|| par_iter)` 패턴으로 scoped 실행. 전역 풀을 변경하지 않아 라이브러리 친화적
 - `convert_directory_with_options`: 폴더 전체에 같은 리사이즈 옵션을 적용할 때 사용
 - `convert_directory_with_conversion_options`: 폴더 전체에 같은 `ConversionOptions` 를 적용해 리사이즈와 JPEG 배경색을 함께 전달할 때 사용
@@ -130,7 +138,7 @@ image_converter/
 
 ### Docker 개발 환경
 
-- `Dockerfile`: 공식 Rust Debian 이미지를 기반으로 `nasm`, `libdav1d-dev`, `pkg-config`, `rustfmt`, `clippy` 를 설치
+- `Dockerfile`: 공식 Rust Debian 이미지를 기반으로 `nasm`, `libdav1d-dev`, `libheif-dev`, `libheif-plugin-x265`, `pkg-config`, `rustfmt`, `clippy` 를 설치
 - `docker-compose.yml`: 현재 작업 디렉토리를 `/workspace` 로 마운트하고 Cargo registry/git/target 을 Docker named volume 으로 분리
 - `scripts/check.sh`: Docker 컨테이너에서 `cargo fmt --check`, `cargo clippy --all-targets --all-features -- -D warnings`, `cargo test` 를 한 번에 실행. `--local` 옵션을 주면 호스트 Cargo 로 실행
 - 기본 이미지는 `rust:1-trixie` (`dav1d >= 1.3.0` 필요), 필요 시 `RUST_IMAGE=rust:1.94-trixie docker compose build` 처럼 고정 가능
@@ -165,10 +173,9 @@ main.rs
 
 ## 향후 개선 제안
 
-1. **HEIC 입력**: iPhone 사진 변환용. `libheif` 시스템 의존성 + 외부 크레이트
-2. **스트레스/메모리 사용량 측정**: 더 큰 실제 이미지 세트에서 변환 시간과 메모리 사용량 확인
-3. **설정 모듈**: 품질 프리셋, 기본값 등을 관리하는 `config.rs`
-4. **다국어 지원**: 메시지를 별도 파일로 분리
+1. **스트레스/메모리 사용량 측정**: 더 큰 실제 이미지 세트에서 변환 시간과 메모리 사용량 확인
+2. **설정 모듈**: 품질 프리셋, 기본값 등을 관리하는 `config.rs`
+3. **다국어 지원**: 메시지를 별도 파일로 분리
 
 이 구조는 현재 프로젝트 규모에 적합하며, 향후 확장에도 대응할 수 있습니다.
 

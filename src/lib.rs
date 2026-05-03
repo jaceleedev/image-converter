@@ -5,6 +5,7 @@ pub mod batch;
 pub mod converter;
 pub mod error;
 pub mod format;
+pub mod input;
 pub mod interactive;
 pub mod utils;
 
