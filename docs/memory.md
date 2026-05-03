@@ -12,6 +12,19 @@
 
 ## 최근 작업 로그
 
+### 2026-05-03 — 웹 서비스 확장 계획 정리
+
+- `docs/web-service-plan.md` 추가
+  - CLI 유지 + Rust 변환 코어 재사용 + Next.js 웹 앱 + Rust API 서버 확장 방향 정리
+  - Next.js 는 화면과 인증 흐름을 담당하고, 이미지 파일은 Cloud Run 의 Rust API 로 직접 업로드하는 구조를 명시
+  - Vercel Function 을 이미지 파일 프록시 경로로 쓰지 않는 이유를 payload 제한 관점에서 정리
+  - UI 시스템은 여러 라이브러리 혼합 대신 Tailwind CSS + shadcn/ui 단일 기준으로 확정
+  - shadcn/ui 는 기본 흑백 예제를 그대로 쓰지 않고, 제품용 design token 과 변환 도구 UX 를 직접 설계하는 출발점으로 사용하기로 정리
+  - HeroUI 는 기본 스타일은 좋지만 유료 Pro 영역과 테마 의존성을 고려해 MVP 기본값에서 제외
+  - Magic UI / Aceternity UI / TailAdmin 은 기본 UI 시스템이 아니라 참고용 또는 향후 별도 검토 후보로 분리
+  - Cloud Run, Render, AWS App Runner/Fargate/Lightsail 관점의 초기 배포 판단과 수익화 확장 경로 정리
+- docs/README.md 에 웹 서비스 확장 계획 문서 링크 추가
+
 ### 2026-05-03 — 배포/설치 경험 정리
 
 - `docs/releasing.md` 추가 — 로컬 Docker 검증 후 push 하는 흐름, Docker 실행, 로컬 설치, release 빌드/태그 체크리스트 정리

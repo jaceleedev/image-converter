@@ -8,6 +8,7 @@
 - `testing.md`: Docker/로컬 테스트 실행법, 테스트 목록, 테스트 유틸리티
 - `release-notes.md`: 버전별 주요 변경 사항과 지원 범위
 - `releasing.md`: 배포 전 체크리스트, Docker 실행, 로컬 설치 경로
+- `web-service-plan.md`: Next.js 웹 서비스 확장, Cloud Run 배포, UI 시스템 계획
 - `memory.md`: 최근 작업 로그, 결정 기록, 진행/대기 항목
 
 ## 문서 관리 규칙
