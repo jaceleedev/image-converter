@@ -53,6 +53,9 @@ docker compose build
 # 전체 품질 검사 (포맷팅 + Clippy + 테스트)
 ./scripts/check.sh
 
+# 웹 앱 검사 (ESLint + Next.js build)
+./scripts/check-web.sh
+
 # 테스트 실행
 docker compose run --rm dev cargo test
 
@@ -74,8 +77,14 @@ docker compose run --rm dev cargo run --release -- -i input.png -o output.webp -
 # 로컬 API 서버 실행
 docker compose up api
 
+# 로컬 웹 앱과 API 서버 함께 실행
+docker compose up api web
+
 # API 상태 확인
 curl http://localhost:4000/healthz
+
+# 웹 앱 열기
+open http://localhost:3000
 
 # 단일 이미지 변환 API 호출
 curl -X POST http://localhost:4000/v1/convert \

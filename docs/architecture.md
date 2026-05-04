@@ -8,11 +8,14 @@ image_converter/
 ├── .dockerignore           # Docker 빌드 컨텍스트 제외 파일
 ├── AGENTS.md               # 에이전트 공통 작업 규칙
 ├── Dockerfile              # Rust + nasm + dav1d + libheif 개발 컨테이너 이미지
-├── docker-compose.yml      # 개발/테스트용 컨테이너와 로컬 API 서버 실행 설정
+├── docker-compose.yml      # 개발/테스트용 컨테이너와 로컬 API/웹 실행 설정
 ├── Cargo.toml              # Rust 프로젝트 설정 및 의존성
 ├── README.md               # 프로젝트 사용 가이드
 ├── scripts/
-│   └── check.sh            # 로컬 품질 검사 (fmt + clippy + test)
+│   ├── check.sh            # Rust 품질 검사 (fmt + clippy + test)
+│   └── check-web.sh        # 웹 앱 품질 검사 (ESLint + Next.js build)
+├── apps/
+│   └── web/                # Next.js + TypeScript + Tailwind CSS + shadcn/ui 웹 앱
 ├── docs/
 │   ├── README.md           # 개발 문서 인덱스
 │   ├── architecture.md     # 이 문서
@@ -68,6 +71,21 @@ image_converter/
 - CPU 중심 변환은 async runtime 을 오래 점유하지 않도록 `tokio::task::spawn_blocking` 에서 실행
 - 로컬 CORS 허용 origin 은 기본 `http://localhost:3000` 이며 `CONVERT_ALLOWED_ORIGIN` 으로 바꿀 수 있음
 - Docker Compose 의 `api` 서비스로 `http://localhost:4000` 에서 실행 가능
+
+### `apps/web` (Next.js 웹 앱)
+
+- 로컬 웹 서비스 MVP 화면
+- Next.js App Router + TypeScript + Tailwind CSS v4 + shadcn/ui 기반
+- 첫 화면은 랜딩 페이지가 아니라 실제 단일 이미지 변환 작업대
+- 브라우저에서 Rust API 서버의 `POST /v1/convert` 로 직접 multipart 업로드
+- 주요 UI
+  - 드래그 앤 드롭 업로드 영역
+  - 출력 포맷 선택(WebP/AVIF/PNG/JPEG)
+  - 품질 슬라이더(PNG 출력 시 무손실 표시)
+  - 최대 가로 크기 입력
+  - JPEG 배경색 입력
+  - 변환 결과 크기/용량/감소율과 다운로드 버튼
+- `NEXT_PUBLIC_CONVERT_API_URL` 로 API 주소를 지정하며 기본값은 `http://localhost:4000`
 
 ### `error.rs` (에러 타입)
 
@@ -162,7 +180,9 @@ image_converter/
 - `docker-compose.yml`: 현재 작업 디렉토리를 `/workspace` 로 마운트하고 Cargo registry/git/target 을 Docker named volume 으로 분리
   - `dev`: 기존 개발/테스트용 컨테이너
   - `api`: `cargo run --bin server` 로 로컬 API 서버를 실행하고 `${API_PORT:-4000}:4000` 을 노출
+  - `web`: `apps/web` 에서 `npm run dev` 를 실행하고 `${WEB_PORT:-3000}:3000` 을 노출
 - `scripts/check.sh`: Docker 컨테이너에서 `cargo fmt --check`, `cargo clippy --all-targets --all-features -- -D warnings`, `cargo test` 를 한 번에 실행. `--local` 옵션을 주면 호스트 Cargo 로 실행
+- `scripts/check-web.sh`: `apps/web` 에서 `npm run lint`, `npm run build` 를 실행
 - 기본 이미지는 `rust:1-trixie` (`dav1d >= 1.3.0` 필요), 필요 시 `RUST_IMAGE=rust:1.94-trixie docker compose build` 처럼 고정 가능
 - Docker 의 `target` 은 named volume 이므로 Docker release 빌드는 컨테이너 실행/검증용 Linux 바이너리로 다루고, 호스트 설치용 바이너리는 로컬 Cargo 빌드/설치 경로로 분리
 
@@ -198,6 +218,10 @@ server.rs
         ├── converter.rs (단일 변환 코어)
         ├── format.rs (출력 포맷 타입)
         └── input.rs (추가 입력 디코더 등록)
+
+apps/web
+  └── Rust API (`NEXT_PUBLIC_CONVERT_API_URL`)
+        └── POST /v1/convert (multipart 변환 요청)
 ```
 
 ## 향후 개선 제안
