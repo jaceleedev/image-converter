@@ -12,6 +12,26 @@
 
 ## 최근 작업 로그
 
+### 2026-05-04 — 로컬 Rust API 서버 1차 추가
+
+- 웹 서비스 확장 첫 구현 단위로 `src/bin/server.rs` 추가
+  - `GET /healthz`
+  - `POST /v1/convert` multipart 단일 이미지 변환
+  - 기존 `convert_image_silent_with_conversion_options` 로 변환 코어 재사용
+- API 서버 안정화 기본값 추가
+  - 업로드 크기 제한: `CONVERT_MAX_UPLOAD_BYTES` (기본 25MiB)
+  - 디코딩 전 픽셀 수 제한: `CONVERT_MAX_PIXELS` (기본 80,000,000)
+  - 동시 변환 제한: `CONVERT_MAX_CONCURRENCY` (기본 2)
+  - 변환 timeout: `CONVERT_TIMEOUT_SECONDS` (기본 120초)
+  - CORS 허용 origin: `CONVERT_ALLOWED_ORIGIN` (기본 `http://localhost:3000`)
+- `docker compose up api` 로 `http://localhost:4000` 에서 로컬 API 서버를 실행할 수 있게 `api` 서비스 추가
+- HTTP API 서버 테스트 4개 추가
+  - `healthz_returns_ok`
+  - `convert_png_to_webp_returns_download`
+  - `convert_rejects_missing_file`
+  - `convert_rejects_too_many_pixels`
+- README / docs/architecture.md / docs/testing.md 갱신
+
 ### 2026-05-04 — 프로젝트 전용 에이전트 스킬 추가
 
 - `npx skills` 로 Codex/Claude Code 양쪽에 프로젝트 범위 skill 설치

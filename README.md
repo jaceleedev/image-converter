@@ -71,6 +71,19 @@ docker compose run --rm dev cargo run --release
 # 자동화용 명령줄 모드 실행
 docker compose run --rm dev cargo run --release -- -i input.png -o output.webp -f webp
 
+# 로컬 API 서버 실행
+docker compose up api
+
+# API 상태 확인
+curl http://localhost:4000/healthz
+
+# 단일 이미지 변환 API 호출
+curl -X POST http://localhost:4000/v1/convert \
+  -F file=@input.png \
+  -F format=webp \
+  -F quality=90 \
+  --output output.webp
+
 # 컨테이너 안에서 셸 열기
 docker compose run --rm dev
 ```
