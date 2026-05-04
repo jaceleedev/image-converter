@@ -12,6 +12,20 @@
 
 ## 최근 작업 로그
 
+### 2026-05-04 — 로컬 웹/API 안정화 보강
+
+- 브랜치: `fix/web-local-stability`
+- 웹 앱 파일 선택 흐름 안정화
+  - MIME type 대신 서버 지원 입력 확장자 기준으로 파일 허용
+  - 브라우저 미리보기가 실패하는 HEIC/HEIF/TIFF 계열도 미리보기 없이 변환 가능
+  - 변환 중 파일 선택/드롭 잠금
+  - `AbortController` 와 요청 id 로 취소된/오래 걸린 응답이 최신 상태를 덮지 않게 처리
+- Rust API 서버 대기열 backpressure 추가
+  - `CONVERT_QUEUE_TIMEOUT_SECONDS` 추가 (기본 10초)
+  - 변환 동시성 슬롯을 제한 시간 안에 얻지 못하면 `429 Too Many Requests` 반환
+  - 대기열 timeout 테스트 `conversion_queue_timeout_returns_429` 추가
+- README / apps/web/README.md / docs/architecture.md / docs/testing.md 갱신
+
 ### 2026-05-04 — Next.js 로컬 웹 앱 MVP 추가
 
 - `apps/web` 에 Next.js 16 + TypeScript + Tailwind CSS v4 + shadcn/ui 웹 앱 추가

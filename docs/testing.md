@@ -415,6 +415,9 @@ cargo test --release
 59. **`convert_rejects_too_many_pixels`**
     - 디코딩 전 픽셀 수 제한을 넘는 이미지는 413 Payload Too Large 로 거부하는지 확인
 
+60. **`conversion_queue_timeout_returns_429`**
+    - 변환 동시성 슬롯을 제한 시간 안에 얻지 못하면 429 Too Many Requests 로 거부하는지 확인
+
 ## 테스트 매크로
 
 ### `test_description!`
@@ -473,7 +476,7 @@ fn test_new_feature() {
 
 ## 테스트 커버리지
 
-현재 테스트는 다음 영역을 커버합니다 (총 88개):
+현재 테스트는 다음 영역을 커버합니다 (총 97개):
 - ✅ 파일 크기 포맷팅
 - ✅ 출력 요약 라벨 (PNG 무손실 / 손실 포맷 품질 표시)
 - ✅ 출력 포맷별 허용 확장자 매칭
@@ -500,6 +503,7 @@ fn test_new_feature() {
 - ✅ 대화형 모드 검증 클로저 + 디폴트 출력 경로 빌더 (순수 함수로 분리하여 단위 테스트)
 - ✅ 대화형 CLI PTY 통합 테스트 (인자 없는 실행의 단일 파일 기본 변환, 폴더 전체 리사이즈, JPEG 직접 배경색 흐름)
 - ✅ 비대화형 CLI 통합 테스트 (`--max-width`, `--jpeg-background` 실제 바이너리 흐름)
+- ✅ HTTP API 서버 기본 응답, 변환, 업로드/픽셀 제한, 대기열 timeout
 
 향후 추가할 수 있는 테스트:
 - 메모리 사용량 테스트

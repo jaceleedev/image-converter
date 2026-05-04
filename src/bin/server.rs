@@ -28,6 +28,7 @@ const DEFAULT_ALLOWED_ORIGIN: &str = "http://localhost:3000";
 const DEFAULT_MAX_UPLOAD_BYTES: usize = 25 * 1024 * 1024;
 const DEFAULT_MAX_PIXELS: u64 = 80_000_000;
 const DEFAULT_MAX_CONCURRENCY: usize = 2;
+const DEFAULT_QUEUE_TIMEOUT_SECONDS: u64 = 10;
 const DEFAULT_TIMEOUT_SECONDS: u64 = 120;
 const MULTIPART_OVERHEAD_BYTES: usize = 1024 * 1024;
 
@@ -36,6 +37,7 @@ struct ServerConfig {
     max_upload_bytes: usize,
     max_pixels: u64,
     max_concurrency: usize,
+    queue_timeout: Duration,
     conversion_timeout: Duration,
 }
 
@@ -45,6 +47,7 @@ impl Default for ServerConfig {
             max_upload_bytes: DEFAULT_MAX_UPLOAD_BYTES,
             max_pixels: DEFAULT_MAX_PIXELS,
             max_concurrency: DEFAULT_MAX_CONCURRENCY,
+            queue_timeout: Duration::from_secs(DEFAULT_QUEUE_TIMEOUT_SECONDS),
             conversion_timeout: Duration::from_secs(DEFAULT_TIMEOUT_SECONDS),
         }
     }
@@ -52,6 +55,10 @@ impl Default for ServerConfig {
 
 impl ServerConfig {
     fn from_env() -> Result<Self, Box<dyn std::error::Error>> {
+        let queue_timeout_seconds = parse_env_u64(
+            "CONVERT_QUEUE_TIMEOUT_SECONDS",
+            DEFAULT_QUEUE_TIMEOUT_SECONDS,
+        )?;
         let timeout_seconds = parse_env_u64("CONVERT_TIMEOUT_SECONDS", DEFAULT_TIMEOUT_SECONDS)?;
         Ok(Self {
             max_upload_bytes: parse_env_usize(
@@ -61,6 +68,7 @@ impl ServerConfig {
             max_pixels: parse_env_u64("CONVERT_MAX_PIXELS", DEFAULT_MAX_PIXELS)?,
             max_concurrency: parse_env_usize("CONVERT_MAX_CONCURRENCY", DEFAULT_MAX_CONCURRENCY)?
                 .max(1),
+            queue_timeout: Duration::from_secs(queue_timeout_seconds.max(1)),
             conversion_timeout: Duration::from_secs(timeout_seconds.max(1)),
         })
     }
@@ -123,8 +131,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("이미지 변환 API 서버 실행 중: http://{addr}");
     println!(
-        "업로드 제한: {} bytes, 픽셀 제한: {}, 동시 변환: {}",
-        config.max_upload_bytes, config.max_pixels, config.max_concurrency
+        "업로드 제한: {} bytes, 픽셀 제한: {}, 동시 변환: {}, 대기 제한: {}초",
+        config.max_upload_bytes,
+        config.max_pixels,
+        config.max_concurrency,
+        config.queue_timeout.as_secs()
     );
 
     let listener = TcpListener::bind(addr).await?;
@@ -278,12 +289,7 @@ async fn run_conversion(
     state: AppState,
     request: ConvertRequest,
 ) -> Result<ConvertedImage, ApiError> {
-    let permit = state
-        .conversions
-        .clone()
-        .acquire_owned()
-        .await
-        .map_err(|_| ApiError::internal("변환 동시성 제한기를 사용할 수 없습니다"))?;
+    let permit = acquire_conversion_permit(&state).await?;
     let timeout = state.config.conversion_timeout;
     let max_pixels = state.config.max_pixels;
     let task = task::spawn_blocking(move || convert_in_tempdir(request, permit, max_pixels));
@@ -295,6 +301,24 @@ async fn run_conversion(
         Err(_) => Err(ApiError::timeout(format!(
             "이미지 변환이 {}초 안에 끝나지 않았습니다",
             timeout.as_secs()
+        ))),
+    }
+}
+
+async fn acquire_conversion_permit(state: &AppState) -> Result<OwnedSemaphorePermit, ApiError> {
+    match time::timeout(
+        state.config.queue_timeout,
+        state.conversions.clone().acquire_owned(),
+    )
+    .await
+    {
+        Ok(Ok(permit)) => Ok(permit),
+        Ok(Err(_)) => Err(ApiError::internal(
+            "변환 동시성 제한기를 사용할 수 없습니다",
+        )),
+        Err(_) => Err(ApiError::too_many_requests(format!(
+            "현재 처리 중인 변환이 많습니다. {}초 뒤 다시 시도하세요",
+            state.config.queue_timeout.as_secs()
         ))),
     }
 }
@@ -392,6 +416,14 @@ impl ApiError {
         Self {
             status: StatusCode::REQUEST_TIMEOUT,
             code: "conversion_timeout",
+            message: message.into(),
+        }
+    }
+
+    fn too_many_requests(message: impl Into<String>) -> Self {
+        Self {
+            status: StatusCode::TOO_MANY_REQUESTS,
+            code: "conversion_queue_full",
             message: message.into(),
         }
     }
@@ -726,12 +758,42 @@ mod tests {
         assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
     }
 
+    #[tokio::test]
+    async fn conversion_queue_timeout_returns_429() {
+        let state = AppState {
+            conversions: Arc::new(Semaphore::new(0)),
+            config: ServerConfig {
+                queue_timeout: Duration::from_millis(1),
+                ..ServerConfig::default()
+            },
+        };
+        let request = ConvertRequest {
+            image: UploadedImage {
+                file_name: "sample.png".to_string(),
+                extension: "png".to_string(),
+                bytes: png_bytes(),
+            },
+            format: OutputFormat::Webp,
+            quality: 90.0,
+            options: ConversionOptions::default(),
+        };
+
+        let error = match run_conversion(state, request).await {
+            Ok(_) => panic!("대기열 timeout이 발생해야 합니다"),
+            Err(error) => error,
+        };
+
+        assert_eq!(error.status, StatusCode::TOO_MANY_REQUESTS);
+        assert_eq!(error.code, "conversion_queue_full");
+    }
+
     fn test_app() -> Router {
         build_router(
             ServerConfig {
                 max_upload_bytes: 1024 * 1024,
                 max_pixels: 10_000,
                 max_concurrency: 1,
+                queue_timeout: Duration::from_secs(1),
                 conversion_timeout: Duration::from_secs(30),
             },
             HeaderValue::from_static(DEFAULT_ALLOWED_ORIGIN),

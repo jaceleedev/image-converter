@@ -67,9 +67,10 @@ image_converter/
   - `max_width`: 선택, 1 이상의 픽셀 값
   - `jpeg_background`: 선택, JPG/JPEG 출력에서만 `white` / `black` / `#RRGGBB`
 - 변환 자체는 `convert_image_silent_with_conversion_options` 를 호출해 기존 라이브러리 코어를 재사용
-- 업로드 크기, 디코딩 전 이미지 픽셀 수, 동시 변환 수, 변환 timeout 을 제한
+- 업로드 크기, 디코딩 전 이미지 픽셀 수, 동시 변환 수, 변환 대기 시간, 변환 timeout 을 제한
 - CPU 중심 변환은 async runtime 을 오래 점유하지 않도록 `tokio::task::spawn_blocking` 에서 실행
 - 로컬 CORS 허용 origin 은 기본 `http://localhost:3000` 이며 `CONVERT_ALLOWED_ORIGIN` 으로 바꿀 수 있음
+- 변환 동시성 슬롯을 `CONVERT_QUEUE_TIMEOUT_SECONDS` 안에 얻지 못하면 429 응답으로 빠르게 실패해 로컬에서 요청이 무한히 쌓이지 않게 함
 - Docker Compose 의 `api` 서비스로 `http://localhost:4000` 에서 실행 가능
 
 ### `apps/web` (Next.js 웹 앱)
@@ -78,6 +79,8 @@ image_converter/
 - Next.js App Router + TypeScript + Tailwind CSS v4 + shadcn/ui 기반
 - 첫 화면은 랜딩 페이지가 아니라 실제 단일 이미지 변환 작업대
 - 브라우저에서 Rust API 서버의 `POST /v1/convert` 로 직접 multipart 업로드
+- 서버 지원 입력 확장자를 기준으로 파일을 허용하고, 브라우저 미리보기가 안 되는 HEIC/HEIF/TIFF 계열도 미리보기 없이 변환 요청 가능
+- 변환 중에는 파일 선택/드롭을 잠그고, 요청 취소와 최신 요청 검증으로 오래 걸린 응답이 새 상태를 덮지 않게 함
 - 주요 UI
   - 드래그 앤 드롭 업로드 영역
   - 출력 포맷 선택(WebP/AVIF/PNG/JPEG)
