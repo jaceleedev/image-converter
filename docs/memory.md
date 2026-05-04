@@ -12,6 +12,23 @@
 
 ## 최근 작업 로그
 
+### 2026-05-04 — 프로젝트 전용 에이전트 스킬 추가
+
+- `npx skills` 로 Codex/Claude Code 양쪽에 프로젝트 범위 skill 설치
+  - Codex: `.agents/skills/`
+  - Claude Code: `.claude/skills/`
+  - 설치 출처와 해시는 `skills-lock.json` 에 기록
+- 설치한 skill
+  - `vercel-react-best-practices`: React/Next.js 성능 최적화
+  - `next-best-practices`: Next.js App Router, RSC 경계, route handler, metadata 등
+  - `web-design-guidelines`: 접근성/UX/UI 품질 audit
+  - `building-components`: 접근성 있는 컴포넌트와 design token 설계
+  - `vercel-composition-patterns`: React 컴포넌트 composition 패턴
+  - `shadcn`: shadcn/ui CLI, 컴포넌트, styling 규칙
+  - `frontend-design`: Anthropic 의 production-grade frontend design 가이드
+- Rust/Axum 관련 skill 은 공식성/직접성 대비 이득이 크지 않아 설치하지 않기로 결정
+- AGENTS.md 에 프로젝트 전용 skill 위치와 갱신 명령을 추가
+
 ### 2026-05-03 — 웹 서비스 확장 계획 정리
 
 - `docs/web-service-plan.md` 추가

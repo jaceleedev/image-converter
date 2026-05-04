@@ -1,0 +1,3 @@
+# Project-local third-party agent skills are vendored from upstream sources.
+.agents/skills/** -whitespace
+.claude/skills/** -whitespace

@@ -24,6 +24,19 @@
 
 `CLAUDE.md` 는 중복 관리를 피하기 위해 사용하지 않습니다. 에이전트별 차이가 필요하면 이 파일에 공통 규칙을 먼저 반영하고, 각 도구 고유 설정은 최소화하세요.
 
+## 프로젝트 전용 에이전트 스킬
+
+- Codex 용 프로젝트 스킬은 `.agents/skills/` 아래에 둠
+- Claude Code 용 프로젝트 스킬은 `.claude/skills/` 아래에 둠
+- `skills-lock.json` 은 설치된 skill 의 출처와 해시를 기록하는 파일이므로 함께 커밋
+- 공식/검증된 skill 을 우선 사용하고, 프로젝트 고유 규칙만 필요한 경우 얇은 로컬 skill 로 보완
+- skill 설치/갱신은 전역(`--global`) 이 아니라 프로젝트 범위에서 실행
+
+```bash
+npx skills list --json
+npx skills update --project --yes
+```
+
 ## 개발 환경
 
 Docker 사용을 기본으로 합니다. 로컬 OS 에 Rust, `nasm`, `dav1d`, `libheif`, `pkg-config` 를 직접 설치하지 않아도 됩니다.
