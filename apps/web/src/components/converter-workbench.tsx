@@ -51,6 +51,23 @@ type ResultState = {
 
 const API_URL =
   process.env.NEXT_PUBLIC_CONVERT_API_URL ?? "http://localhost:4000";
+const supportedInputExtensions = [
+  "png",
+  "jpg",
+  "jpeg",
+  "webp",
+  "avif",
+  "heic",
+  "heif",
+  "tiff",
+  "tif",
+  "bmp",
+  "ico",
+] as const;
+const inputAccept = [
+  "image/*",
+  ...supportedInputExtensions.map((extension) => `.${extension}`),
+].join(",");
 
 const formatOptions: Array<{
   value: OutputFormat;
@@ -65,6 +82,8 @@ const formatOptions: Array<{
 
 export function ConverterWorkbench() {
   const inputRef = React.useRef<HTMLInputElement>(null);
+  const abortRef = React.useRef<AbortController | null>(null);
+  const requestIdRef = React.useRef(0);
   const [file, setFile] = React.useState<File | null>(null);
   const [meta, setMeta] = React.useState<ImageMeta | null>(null);
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
@@ -77,49 +96,68 @@ export function ConverterWorkbench() {
   const [result, setResult] = React.useState<ResultState | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [isDragging, setIsDragging] = React.useState(false);
+  const isBusy = stage === "converting";
 
   React.useEffect(() => {
     return () => {
       if (previewUrl) {
         URL.revokeObjectURL(previewUrl);
       }
+    };
+  }, [previewUrl]);
+
+  React.useEffect(() => {
+    return () => {
       if (result?.url) {
         URL.revokeObjectURL(result.url);
       }
     };
-  }, [previewUrl, result?.url]);
+  }, [result?.url]);
+
+  React.useEffect(() => {
+    return () => {
+      requestIdRef.current += 1;
+      abortRef.current?.abort();
+    };
+  }, []);
 
   async function selectFile(nextFile: File | null) {
-    if (!nextFile) {
+    if (!nextFile || isBusy) {
       return;
     }
-    if (!nextFile.type.startsWith("image/")) {
-      setError("이미지 파일만 선택할 수 있습니다.");
+    if (!isSupportedInputFile(nextFile)) {
+      setError("지원하는 이미지 파일만 선택할 수 있습니다.");
       setStage("error");
       return;
     }
 
+    const selectionId = requestIdRef.current + 1;
+    requestIdRef.current = selectionId;
     const objectUrl = URL.createObjectURL(nextFile);
+    let dimensions: ImageMeta | null = null;
+    let nextPreviewUrl: string | null = objectUrl;
+
     try {
-      const dimensions = await readImageMeta(objectUrl);
-      if (previewUrl) {
-        URL.revokeObjectURL(previewUrl);
-      }
-      if (result?.url) {
-        URL.revokeObjectURL(result.url);
-      }
-      setFile(nextFile);
-      setMeta(dimensions);
-      setPreviewUrl(objectUrl);
-      setResult(null);
-      setError(null);
-      setProgress(0);
-      setStage("ready");
+      dimensions = await readImageMeta(objectUrl);
     } catch {
       URL.revokeObjectURL(objectUrl);
-      setError("이미지 정보를 읽을 수 없습니다.");
-      setStage("error");
+      nextPreviewUrl = null;
     }
+
+    if (selectionId !== requestIdRef.current) {
+      if (nextPreviewUrl) {
+        URL.revokeObjectURL(nextPreviewUrl);
+      }
+      return;
+    }
+
+    setFile(nextFile);
+    setMeta(dimensions);
+    setPreviewUrl(nextPreviewUrl);
+    setResult(null);
+    setError(null);
+    setProgress(0);
+    setStage("ready");
   }
 
   const convert = async () => {
@@ -130,24 +168,32 @@ export function ConverterWorkbench() {
     }
 
     const widthValue = maxWidth.trim();
-    if (widthValue && Number(widthValue) < 1) {
+    if (widthValue && !isPositiveInteger(widthValue)) {
       setError("최대 가로 크기는 1px 이상이어야 합니다.");
       setStage("error");
       return;
     }
+
+    const selectedFile = file;
+    const outputFormat = format;
+    const requestId = requestIdRef.current + 1;
+    const controller = new AbortController();
+    requestIdRef.current = requestId;
+    abortRef.current?.abort();
+    abortRef.current = controller;
 
     setStage("converting");
     setError(null);
     setProgress(18);
 
     const formData = new FormData();
-    formData.append("file", file);
-    formData.append("format", format);
+    formData.append("file", selectedFile);
+    formData.append("format", outputFormat);
     formData.append("quality", String(quality));
     if (widthValue) {
       formData.append("max_width", widthValue);
     }
-    if (format === "jpeg") {
+    if (outputFormat === "jpeg") {
       formData.append("jpeg_background", jpegBackground);
     }
 
@@ -156,7 +202,11 @@ export function ConverterWorkbench() {
       const response = await fetch(`${API_URL}/v1/convert`, {
         method: "POST",
         body: formData,
+        signal: controller.signal,
       });
+      if (requestId !== requestIdRef.current) {
+        return;
+      }
       setProgress(78);
 
       if (!response.ok) {
@@ -165,13 +215,16 @@ export function ConverterWorkbench() {
 
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
-      if (result?.url) {
-        URL.revokeObjectURL(result.url);
+      if (requestId !== requestIdRef.current) {
+        URL.revokeObjectURL(url);
+        return;
       }
 
       setResult({
         url,
-        fileName: fileNameFromResponse(response) ?? outputFileName(file.name, format),
+        fileName:
+          fileNameFromResponse(response) ??
+          outputFileName(selectedFile.name, outputFormat),
         size: blob.size,
         inputSize: numberHeader(response, "x-input-size"),
         inputWidth: numberHeader(response, "x-input-width"),
@@ -182,6 +235,9 @@ export function ConverterWorkbench() {
       setProgress(100);
       setStage("done");
     } catch (cause) {
+      if (requestId !== requestIdRef.current) {
+        return;
+      }
       setError(
         cause instanceof Error
           ? cause.message
@@ -189,16 +245,17 @@ export function ConverterWorkbench() {
       );
       setStage("error");
       setProgress(0);
+    } finally {
+      if (abortRef.current === controller) {
+        abortRef.current = null;
+      }
     }
   };
 
   const reset = () => {
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-    }
-    if (result?.url) {
-      URL.revokeObjectURL(result.url);
-    }
+    requestIdRef.current += 1;
+    abortRef.current?.abort();
+    abortRef.current = null;
     setFile(null);
     setMeta(null);
     setPreviewUrl(null);
@@ -211,7 +268,6 @@ export function ConverterWorkbench() {
     }
   };
 
-  const isBusy = stage === "converting";
   const qualityDisabled = format === "png";
   const reduction = result
     ? reductionRate(result.inputSize ?? file?.size ?? 0, result.size)
@@ -248,9 +304,18 @@ export function ConverterWorkbench() {
           <div className="flex min-w-0 flex-col gap-4">
             <button
               type="button"
-              onClick={() => inputRef.current?.click()}
+              aria-disabled={isBusy}
+              aria-busy={isBusy}
+              onClick={() => {
+                if (!isBusy) {
+                  inputRef.current?.click();
+                }
+              }}
               onDragEnter={(event) => {
                 event.preventDefault();
+                if (isBusy) {
+                  return;
+                }
                 setIsDragging(true);
               }}
               onDragOver={(event) => event.preventDefault()}
@@ -261,18 +326,23 @@ export function ConverterWorkbench() {
               onDrop={(event) => {
                 event.preventDefault();
                 setIsDragging(false);
+                if (isBusy) {
+                  return;
+                }
                 void selectFile(event.dataTransfer.files.item(0));
               }}
               className={cn(
                 "relative min-h-[360px] overflow-hidden border border-dashed border-border bg-card text-left transition-colors",
                 "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-hidden",
-                isDragging && "border-primary bg-accent"
+                isDragging && "border-primary bg-accent",
+                isBusy && "cursor-wait opacity-75"
               )}
             >
               <input
                 ref={inputRef}
                 type="file"
-                accept="image/*"
+                accept={inputAccept}
+                disabled={isBusy}
                 className="sr-only"
                 onChange={(event) => {
                   void selectFile(event.target.files?.item(0) ?? null);
@@ -292,11 +362,27 @@ export function ConverterWorkbench() {
                       />
                     </div>
                   </div>
-                  <div className="grid gap-3 border-t border-border bg-background/90 p-4 sm:grid-cols-3">
-                    <FileStat label="파일" value={file?.name ?? "-"} />
-                    <FileStat label="크기" value={`${meta.width} x ${meta.height}`} />
-                    <FileStat label="용량" value={formatBytes(file?.size ?? 0)} />
+                  <SelectedFileStats file={file} meta={meta} />
+                </div>
+              ) : file ? (
+                <div className="relative grid min-h-[360px] grid-rows-[1fr_auto]">
+                  <div className="flex flex-col justify-between p-5">
+                    <div className="flex items-center justify-between gap-3">
+                      <FileImageIcon className="text-primary" />
+                      <span className="font-mono text-xs text-muted-foreground">
+                        PREVIEW UNAVAILABLE
+                      </span>
+                    </div>
+                    <div className="flex max-w-xl flex-col gap-3">
+                      <h2 className="break-words text-2xl font-semibold sm:text-4xl">
+                        {file.name}
+                      </h2>
+                      <p className="text-sm leading-6 text-muted-foreground">
+                        브라우저 미리보기 없이 Rust API로 변환합니다.
+                      </p>
+                    </div>
                   </div>
+                  <SelectedFileStats file={file} meta={meta} />
                 </div>
               ) : (
                 <div className="relative flex min-h-[360px] flex-col justify-between p-5">
@@ -313,7 +399,7 @@ export function ConverterWorkbench() {
                         이미지를 올려주세요
                       </h2>
                       <p className="text-sm leading-6 text-muted-foreground">
-                        파일은 브라우저에서 Rust API로 직접 전송됩니다.
+                        PNG, JPEG, WebP, AVIF, HEIC, TIFF까지 처리합니다.
                       </p>
                     </div>
                   </div>
@@ -522,6 +608,8 @@ export function ConverterWorkbench() {
                       ? dimensionLabel(result.inputWidth, result.inputHeight)
                       : meta
                         ? `${meta.width} x ${meta.height}`
+                        : file
+                          ? inputExtensionLabel(file.name)
                         : "-"
                   }
                 />
@@ -539,6 +627,25 @@ export function ConverterWorkbench() {
         </section>
       </div>
     </main>
+  );
+}
+
+function SelectedFileStats({
+  file,
+  meta,
+}: {
+  file: File | null;
+  meta: ImageMeta | null;
+}) {
+  return (
+    <div className="grid gap-3 border-t border-border bg-background/90 p-4 sm:grid-cols-3">
+      <FileStat label="파일" value={file?.name ?? "-"} />
+      <FileStat
+        label="크기"
+        value={meta ? `${meta.width} x ${meta.height}` : "미리보기 없음"}
+      />
+      <FileStat label="용량" value={formatBytes(file?.size ?? 0)} />
+    </div>
   );
 }
 
@@ -605,6 +712,27 @@ function readImageMeta(url: string): Promise<ImageMeta> {
   });
 }
 
+function isSupportedInputFile(file: File) {
+  const extension = fileExtension(file.name);
+  return extension !== null && isSupportedInputExtension(extension);
+}
+
+function isSupportedInputExtension(extension: string) {
+  return supportedInputExtensions.includes(
+    extension.toLowerCase() as (typeof supportedInputExtensions)[number]
+  );
+}
+
+function fileExtension(fileName: string) {
+  const match = /\.([^.]+)$/.exec(fileName);
+  return match?.[1]?.toLowerCase() ?? null;
+}
+
+function inputExtensionLabel(fileName: string) {
+  const extension = fileExtension(fileName);
+  return extension ? `.${extension}` : "확장자 없음";
+}
+
 async function readErrorMessage(response: Response) {
   try {
     const data = (await response.json()) as {
@@ -667,6 +795,10 @@ function formatBytes(bytes: number) {
 
 function safeColor(value: string) {
   return /^#[0-9a-f]{6}$/i.test(value) ? value : "#ffffff";
+}
+
+function isPositiveInteger(value: string) {
+  return /^[1-9]\d*$/.test(value);
 }
 
 function clampQuality(value: string) {

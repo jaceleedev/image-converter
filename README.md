@@ -77,6 +77,9 @@ docker compose run --rm dev cargo run --release -- -i input.png -o output.webp -
 # 로컬 API 서버 실행
 docker compose up api
 
+# 로컬 API 서버 대기열 제한 조정 (기본 10초)
+CONVERT_QUEUE_TIMEOUT_SECONDS=3 docker compose up api
+
 # 로컬 웹 앱과 API 서버 함께 실행
 docker compose up api web
 
