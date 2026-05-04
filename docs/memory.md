@@ -12,6 +12,22 @@
 
 ## 최근 작업 로그
 
+### 2026-05-04 — Next.js 로컬 웹 앱 MVP 추가
+
+- `apps/web` 에 Next.js 16 + TypeScript + Tailwind CSS v4 + shadcn/ui 웹 앱 추가
+- 첫 화면을 실제 단일 이미지 변환 작업대로 구현
+  - 드래그 앤 드롭 업로드
+  - 원본 이미지 미리보기와 파일 정보 표시
+  - 출력 포맷(WebP/AVIF/PNG/JPEG), 품질, 최대 가로 크기, JPEG 배경색 옵션
+  - Rust API `POST /v1/convert` 호출 후 결과 용량/크기/감소율과 다운로드 버튼 표시
+- `NEXT_PUBLIC_CONVERT_API_URL` 기본값은 `http://localhost:4000`
+- Docker Compose 에 `web` 서비스 추가
+  - `docker compose up api web` 으로 로컬 API + 웹 앱 동시 실행
+- `scripts/check-web.sh` 추가
+  - `npm run lint`
+  - `npm run build`
+- README / docs/architecture.md / docs/testing.md 갱신
+
 ### 2026-05-04 — 로컬 Rust API 서버 1차 추가
 
 - 웹 서비스 확장 첫 구현 단위로 `src/bin/server.rs` 추가

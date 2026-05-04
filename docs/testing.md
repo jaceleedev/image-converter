@@ -20,6 +20,8 @@ src/
     integration_tests.rs # 통합 테스트
 tests/
   interactive_cli.rs # rexpect 기반 대화형 CLI PTY + 비대화형 CLI 통합 테스트
+apps/
+  web/              # Next.js 웹 앱 (ESLint + build 검증)
 ```
 
 ## 테스트 실행 방법
@@ -59,6 +61,29 @@ docker compose run --rm dev cargo test --release
 ```
 
 컨테이너의 `target` 과 Cargo 캐시는 Docker named volume 에 저장됩니다. 캐시까지 초기화하려면 `docker compose down -v` 를 실행합니다.
+
+### 웹 앱 검사
+
+`apps/web` 은 Next.js 앱이므로 Rust 검사와 별도로 실행합니다.
+
+```bash
+./scripts/check-web.sh
+```
+
+위 스크립트는 `apps/web` 에서 다음 검사를 실행합니다.
+
+```bash
+npm run lint
+npm run build
+```
+
+로컬 개발 서버는 다음처럼 실행합니다.
+
+```bash
+docker compose up api web
+```
+
+브라우저에서 `http://localhost:3000` 을 열면 웹 앱이 `http://localhost:4000` 의 Rust API 로 직접 변환 요청을 보냅니다.
 
 ### 로컬 Rust 로 실행
 

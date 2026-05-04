@@ -41,7 +41,24 @@ services:
       - "${API_PORT:-4000}:4000"
     command: cargo run --bin server
 
+  web:
+    image: node:24-bookworm-slim
+    working_dir: /workspace/apps/web
+    volumes:
+      - .:/workspace
+      - web-node-modules:/workspace/apps/web/node_modules
+      - npm-cache:/root/.npm
+    environment:
+      NEXT_PUBLIC_CONVERT_API_URL: ${NEXT_PUBLIC_CONVERT_API_URL:-http://localhost:4000}
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    command: sh -c "npm install && npm run dev -- --hostname 0.0.0.0"
+    depends_on:
+      - api
+
 volumes:
   cargo-registry:
   cargo-git:
   target:
+  web-node-modules:
+  npm-cache:
