@@ -8,7 +8,7 @@ image_converter/
 ├── .dockerignore           # Docker 빌드 컨텍스트 제외 파일
 ├── AGENTS.md               # 에이전트 공통 작업 규칙
 ├── Dockerfile              # Rust + nasm + dav1d + libheif 개발 컨테이너 이미지
-├── docker-compose.yml      # 개발/테스트용 컨테이너 실행 설정
+├── docker-compose.yml      # 개발/테스트용 컨테이너와 로컬 API 서버 실행 설정
 ├── Cargo.toml              # Rust 프로젝트 설정 및 의존성
 ├── README.md               # 프로젝트 사용 가이드
 ├── scripts/
@@ -25,6 +25,8 @@ image_converter/
 └── src/
     ├── main.rs             # 진입점 - CLI 인자 처리, 단일/일괄 분기
     ├── lib.rs              # 라이브러리 루트 - 공개 API re-export
+    ├── bin/
+    │   └── server.rs       # 로컬/웹 확장용 HTTP API 서버 진입점
     ├── error.rs            # ConverterError + Result 타입 (thiserror 기반)
     ├── format.rs           # OutputFormat enum + 출력 포맷 파싱/표시 헬퍼
     ├── input.rs            # image 크레이트 추가 입력 디코더 등록
@@ -50,6 +52,22 @@ image_converter/
 - 자동화용 옵션으로 최대 가로 크기(`--max-width`) 와 JPEG 배경색(`--jpeg-background`) 을 받아 `ConversionOptions` 로 전달
 - 비대화형 일괄 변환은 모든 대상 처리를 끝낸 뒤 실패 파일이 1개 이상이면 `BatchPartialFailure` 로 종료해 자동화에서 non-zero 상태를 받을 수 있게 함 (`skipped` 는 실패로 보지 않음)
 - 에러 처리 및 종료 — `ConverterError` 의 `Display` 로 메시지 출력
+
+### `src/bin/server.rs` (HTTP API 서버)
+
+- 웹 서비스 확장을 위한 `axum` 기반 API 서버 진입점
+- `GET /healthz` 로 로컬 실행과 배포 헬스체크에 사용할 상태 응답 제공
+- `POST /v1/convert` 에서 multipart 업로드를 받아 단일 이미지를 변환
+  - `file`: 업로드 이미지 파일 1개
+  - `format`: `png` / `jpg` / `jpeg` / `webp` / `avif`
+  - `quality`: 선택, 기본 90, 1-100 범위
+  - `max_width`: 선택, 1 이상의 픽셀 값
+  - `jpeg_background`: 선택, JPG/JPEG 출력에서만 `white` / `black` / `#RRGGBB`
+- 변환 자체는 `convert_image_silent_with_conversion_options` 를 호출해 기존 라이브러리 코어를 재사용
+- 업로드 크기, 디코딩 전 이미지 픽셀 수, 동시 변환 수, 변환 timeout 을 제한
+- CPU 중심 변환은 async runtime 을 오래 점유하지 않도록 `tokio::task::spawn_blocking` 에서 실행
+- 로컬 CORS 허용 origin 은 기본 `http://localhost:3000` 이며 `CONVERT_ALLOWED_ORIGIN` 으로 바꿀 수 있음
+- Docker Compose 의 `api` 서비스로 `http://localhost:4000` 에서 실행 가능
 
 ### `error.rs` (에러 타입)
 
@@ -142,6 +160,8 @@ image_converter/
 
 - `Dockerfile`: 공식 Rust Debian 이미지를 기반으로 `nasm`, `libdav1d-dev`, `libheif-dev`, `libheif-plugin-x265`, `pkg-config`, `rustfmt`, `clippy` 를 설치
 - `docker-compose.yml`: 현재 작업 디렉토리를 `/workspace` 로 마운트하고 Cargo registry/git/target 을 Docker named volume 으로 분리
+  - `dev`: 기존 개발/테스트용 컨테이너
+  - `api`: `cargo run --bin server` 로 로컬 API 서버를 실행하고 `${API_PORT:-4000}:4000` 을 노출
 - `scripts/check.sh`: Docker 컨테이너에서 `cargo fmt --check`, `cargo clippy --all-targets --all-features -- -D warnings`, `cargo test` 를 한 번에 실행. `--local` 옵션을 주면 호스트 Cargo 로 실행
 - 기본 이미지는 `rust:1-trixie` (`dav1d >= 1.3.0` 필요), 필요 시 `RUST_IMAGE=rust:1.94-trixie docker compose build` 처럼 고정 가능
 - Docker 의 `target` 은 named volume 이므로 Docker release 빌드는 컨테이너 실행/검증용 Linux 바이너리로 다루고, 호스트 설치용 바이너리는 로컬 Cargo 빌드/설치 경로로 분리
@@ -172,6 +192,12 @@ main.rs
         │     ├── batch.rs
         │     └── format.rs
         └── tests/ (테스트에서만 사용)
+
+server.rs
+  └── image_converter (lib)
+        ├── converter.rs (단일 변환 코어)
+        ├── format.rs (출력 포맷 타입)
+        └── input.rs (추가 입력 디코더 등록)
 ```
 
 ## 향후 개선 제안

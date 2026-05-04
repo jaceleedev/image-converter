@@ -9,6 +9,8 @@
 ```
 src/
   main.rs         # CLI 인자 파서 단위 테스트 (#[cfg(test)] mod tests)
+  bin/
+    server.rs     # HTTP API 서버 라우터/변환 요청 단위 테스트
   interactive.rs  # 대화형 모드 검증/경로/옵션 단위 테스트 (#[cfg(test)] mod tests)
   lib.rs          # 테스트용 함수들
   tests/
@@ -42,6 +44,12 @@ docker compose run --rm dev cargo test
 
 ```bash
 docker compose run --rm dev cargo test -- --nocapture
+```
+
+API 서버 테스트만 빠르게 확인하려면 다음처럼 실행합니다.
+
+```bash
+docker compose run --rm dev cargo test --bin server
 ```
 
 릴리즈 모드 테스트도 컨테이너 안에서 실행할 수 있습니다.
@@ -365,6 +373,22 @@ cargo test --release
 
 55. **`non_interactive_batch_skipped_outputs_still_succeed`**
     - 기존 출력 파일 때문에 건너뛴 항목만 있는 배치 변환은 성공 종료하고 기존 파일을 보존하는지 확인
+
+### 🌐 HTTP API 서버 테스트 (`src/bin/server.rs`)
+
+56. **`healthz_returns_ok`**
+    - `GET /healthz` 가 200 OK 와 `ok` 본문을 반환하는지 확인
+
+57. **`convert_png_to_webp_returns_download`**
+    - multipart 요청으로 PNG 파일과 변환 옵션을 보내면 WebP 다운로드 응답을 반환하는지 확인
+    - `max_width` 적용 결과가 응답 헤더(`x-output-width`)에 반영되는지 검증
+    - 출력 본문이 WebP 시그니처(`RIFF` / `WEBP`) 로 시작하는지 확인
+
+58. **`convert_rejects_missing_file`**
+    - `file` 필드가 없는 multipart 요청은 400 Bad Request 로 거부하는지 확인
+
+59. **`convert_rejects_too_many_pixels`**
+    - 디코딩 전 픽셀 수 제한을 넘는 이미지는 413 Payload Too Large 로 거부하는지 확인
 
 ## 테스트 매크로
 
