@@ -35,10 +35,17 @@ NEXT_PUBLIC_CONVERT_API_URL=http://localhost:4000
 ```bash
 npm run lint
 npm run build
+npm run test:e2e
 ```
 
 루트에서는 같은 검사를 다음 스크립트로 실행합니다.
 
 ```bash
 ./scripts/check-web.sh
+```
+
+Playwright 브라우저는 프로젝트 내부 캐시만 사용합니다. 처음 한 번은 다음 명령으로 설치합니다.
+
+```bash
+npm run test:e2e:install
 ```
