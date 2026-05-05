@@ -77,6 +77,11 @@ image_converter/
 
 - 로컬 웹 서비스 MVP 화면
 - Next.js App Router + TypeScript + Tailwind CSS v4 기반
+- 변환 작업대는 `apps/web/src/features/converter/` 아래 feature 단위로 구성
+  - `converter-workbench.tsx`: 화면 조립
+  - `hooks/use-converter.ts`: 변환 상태, 파일 선택, 요청 취소, object URL 생명주기 관리
+  - `lib/`: API 호출, 파일/포맷 유틸, 이미지 메타 읽기
+  - `components/`: 컨트롤 데크, 업로드 도크, 미리보기 스테이지, 결과 UI
 - UI 컴포넌트 방향은 shadcn/ui 와 Aceternity UI 계열 로컬 컴포넌트를 제거하고 HeroUI v3 로 전환
 - HeroUI v3 는 `@heroui/react`, `@heroui/styles` 를 사용하며, Tailwind CSS v4 import 뒤에 `@import "@heroui/styles";` 를 추가하는 방식
 - HeroUI v3 는 Provider 없이 compound component 패턴을 사용하므로, `app/layout.tsx` 에 별도 UI Provider 를 두지 않음

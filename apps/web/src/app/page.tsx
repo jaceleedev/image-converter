@@ -1,4 +1,4 @@
-import { ConverterWorkbench } from "@/components/converter-workbench";
+import { ConverterWorkbench } from "@/features/converter/converter-workbench";
 
 export default function Home() {
   return <ConverterWorkbench />;
