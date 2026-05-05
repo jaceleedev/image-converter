@@ -9,14 +9,14 @@
 - 웹 UI 는 Next.js + TypeScript 로 만든다.
 - 이미지 변환 처리는 Next.js 서버가 아니라 Rust API 서버가 맡는다.
 - 초기 트래픽은 적을 가능성이 높으므로, Rust API 는 사용하지 않을 때 0 인스턴스까지 줄어드는 Cloud Run 배포를 우선 검토한다.
-- UI 시스템은 하나로 통일한다. 현재 웹 앱은 Tailwind CSS v4 + Aceternity UI 계열 로컬 컴포넌트 방향으로 전환한다.
+- UI 시스템은 하나로 통일한다. 현재 웹 앱은 Tailwind CSS v4 + HeroUI v3 를 기본 UI 시스템으로 사용한다.
 
 ## 목표 아키텍처
 
 ```text
 image-converter/
 ├── apps/
-│   └── web/              # Next.js + TypeScript + Tailwind CSS v4 + Aceternity UI 계열 컴포넌트
+│   └── web/              # Next.js + TypeScript + Tailwind CSS v4 + HeroUI v3
 ├── src/
 │   ├── main.rs           # 기존 CLI 진입점 유지
 │   ├── lib.rs            # 변환 코어 공개 API
@@ -92,25 +92,23 @@ multipart 요청 수신
 현재 기준 권장안:
 
 - Tailwind CSS
-- Aceternity UI 계열 컴포넌트
+- HeroUI v3 (`@heroui/react`, `@heroui/styles`)
 - lucide-react
-- 필요한 경우 Motion 기반 애니메이션은 직접 만든 소수 컴포넌트에만 사용
 
-초기에는 shadcn/ui 를 기본 UI 시스템으로 검토했지만, 디자인 방향을 더 과감하게 열어두기 위해 shadcn/ui 의 컴포넌트와 설정을 제거하고 Aceternity UI 계열 컴포넌트로 전환합니다. Aceternity UI 도 전체 런타임 패키지를 의존하는 방식보다는 필요한 컴포넌트를 로컬 코드로 가져와 프로젝트 안에서 소유하는 방식을 기본값으로 둡니다.
+초기에는 shadcn/ui 와 Aceternity UI 계열 로컬 컴포넌트를 검토했지만, 제품 UI 기준은 HeroUI v3 로 전환합니다. HeroUI v3 는 Tailwind CSS v4 와 React 19 조건에 맞고, 기본 접근성/상태 처리/컴포넌트 품질이 갖춰져 있어 변환 작업대 UI 를 빠르게 안정화하기 좋습니다.
 
-Aceternity UI 계열로 전환하는 이유:
+HeroUI v3 로 전환하는 이유:
 
 - Next.js, TypeScript, Tailwind 와 궁합이 좋다.
-- 애니메이션과 배경 효과를 제품 톤에 맞게 강하게 실험하기 좋다.
-- 필요한 컴포넌트만 로컬로 소유해 디자인을 과감하게 바꾸기 쉽다.
-- 기본 컴포넌트 라이브러리 느낌보다 독자적인 도구 화면을 만들기 좋다.
+- React Aria 기반 컴포넌트로 접근성과 키보드 상호작용을 기본 확보하기 좋다.
+- 무료로 사용할 수 있는 공개 컴포넌트 라이브러리이며, Pro 템플릿 영역에 의존하지 않아도 MVP 를 구성할 수 있다.
+- HeroUI v3 는 Provider 없이 `@import "@heroui/styles";` 와 compound component 패턴으로 쓸 수 있어 설정이 단순하다.
 
 다른 UI 후보의 사용 원칙:
 
 - daisyUI: 빠른 프로토타입 후보로만 둔다.
-- HeroUI: 기본 스타일이 잘 잡힌 완성형 컴포넌트 라이브러리지만, 유료 Pro 영역과 라이브러리 고유 테마 의존성을 고려해 MVP 기본값으로 쓰지 않는다.
-- shadcn/ui: 현재 웹 앱에서는 제거한다. Aceternity 컴포넌트 설치에 shadcn CLI 가 필요할 수 있어도, shadcn/ui 컴포넌트 세트를 제품 UI 기준으로 삼지는 않는다.
-- Magic UI / TailAdmin: 기본 UI 시스템이 아니라 참고용 또는 향후 별도 검토 후보로 둔다.
+- shadcn/ui: 현재 웹 앱에서는 제거된 상태이며, 제품 UI 기준으로 삼지 않는다.
+- Aceternity UI / Magic UI / TailAdmin: 기본 UI 시스템이 아니라 참고용 또는 향후 별도 검토 후보로 둔다.
 - TailAdmin: 공개 변환 도구 화면에는 쓰지 않는다. 나중에 관리자/사용량/결제 대시보드가 필요할 때 별도 검토한다.
 
 ## 초기 화면 UX
@@ -228,7 +226,7 @@ AWS 를 쓴다면 App Runner 가 Cloud Run 과 가장 비슷한 선택지입니�
    - 파일 크기/픽셀 수/동시성 제한
 
 2. Next.js 웹 앱 추가
-   - Tailwind CSS v4 + Aceternity UI 계열 컴포넌트
+   - Tailwind CSS v4 + HeroUI v3
    - 단일 이미지 변환 화면
    - 변환 결과 다운로드
 

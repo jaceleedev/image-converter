@@ -12,6 +12,24 @@
 
 ## 최근 작업 로그
 
+### 2026-05-05 — 웹 UI 시스템 HeroUI v3 전환 준비
+
+- 사용자가 Aceternity UI 를 완전히 제거하고 HeroUI 로 전환하기로 결정
+- 미커밋 Aceternity 실험 변경은 되돌리고, 저장소에 남아 있던 Aceternity 로컬 컴포넌트도 제거
+  - `apps/web/src/components/aceternity/` 제거
+  - `motion` 의존성 제거
+- HeroUI v3 기반 준비
+  - `apps/web` 에 `@heroui/react`, `@heroui/styles` 추가
+  - `globals.css` 에 Tailwind CSS v4 뒤 `@import "@heroui/styles";` 추가
+  - 변환 작업대의 버튼, 알림, 진행률, 포맷 선택, 슬라이더 등 주요 UI import 를 HeroUI 컴포넌트로 전환
+  - HeroUI v3 는 Provider 가 필요 없으므로 `app/layout.tsx` 에 별도 Provider 를 추가하지 않음
+- 에이전트 준비
+  - `npx skills add heroui-inc/heroui --skill heroui-react --agent codex -y --copy` 로 프로젝트 범위 Codex skill 설치
+  - `npx skills add heroui-inc/heroui --skill heroui-react --agent claude-code -y --copy` 로 프로젝트 범위 Claude Code skill 설치
+  - `.codex/config.toml` 에 프로젝트 범위 HeroUI MCP 서버 설정 추가
+  - `.mcp.json` 에 Claude Code 용 프로젝트 범위 HeroUI MCP 서버 설정 추가
+- `npm run lint` 성공
+
 ### 2026-05-05 — 웹 UI 시스템 shadcn 제거 및 Aceternity 기반 준비
 
 - 사용자가 `git restore .` 로 이전 디자인 시도를 되돌린 뒤, shadcn/ui 를 걷어내고 Aceternity UI 방향으로 전환하기로 결정

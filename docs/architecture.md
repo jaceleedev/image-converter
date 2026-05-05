@@ -15,7 +15,7 @@ image_converter/
 │   ├── check.sh            # Rust 품질 검사 (fmt + clippy + test)
 │   └── check-web.sh        # 웹 앱 품질 검사 (ESLint + Next.js build)
 ├── apps/
-│   └── web/                # Next.js + TypeScript + Tailwind CSS v4 + Aceternity UI 기반 웹 앱
+│   └── web/                # Next.js + TypeScript + Tailwind CSS v4 + HeroUI v3 기반 웹 앱
 ├── docs/
 │   ├── README.md           # 개발 문서 인덱스
 │   ├── architecture.md     # 이 문서
@@ -77,8 +77,9 @@ image_converter/
 
 - 로컬 웹 서비스 MVP 화면
 - Next.js App Router + TypeScript + Tailwind CSS v4 기반
-- UI 컴포넌트 방향은 shadcn/ui 를 제거하고 Aceternity UI 계열 로컬 컴포넌트로 전환
-- Aceternity UI 는 전체 런타임 패키지로 쓰기보다, 필요한 컴포넌트를 `apps/web/src/components/aceternity/` 아래에 로컬 코드로 소유하는 방식
+- UI 컴포넌트 방향은 shadcn/ui 와 Aceternity UI 계열 로컬 컴포넌트를 제거하고 HeroUI v3 로 전환
+- HeroUI v3 는 `@heroui/react`, `@heroui/styles` 를 사용하며, Tailwind CSS v4 import 뒤에 `@import "@heroui/styles";` 를 추가하는 방식
+- HeroUI v3 는 Provider 없이 compound component 패턴을 사용하므로, `app/layout.tsx` 에 별도 UI Provider 를 두지 않음
 - 첫 화면은 랜딩 페이지가 아니라 실제 단일 이미지 변환 작업대
 - 브라우저에서 Rust API 서버의 `POST /v1/convert` 로 직접 multipart 업로드
 - 서버 지원 입력 확장자를 기준으로 파일을 허용하고, 브라우저 미리보기가 안 되는 HEIC/HEIF/TIFF 계열도 미리보기 없이 변환 요청 가능

@@ -13,20 +13,18 @@ import {
 } from "lucide-react";
 import * as React from "react";
 
-import { AnimatedContainer } from "@/components/aceternity/animated-container";
 import {
   Alert,
-  AlertDescription,
-  AlertTitle,
-  Badge,
   Button,
+  Chip,
   Input,
-  Progress,
+  Label,
+  ProgressBar,
+  Radio,
+  RadioGroup,
   Separator,
   Slider,
-  ToggleGroup,
-  ToggleGroupItem,
-} from "@/components/aceternity/primitives";
+} from "@heroui/react";
 import { cn } from "@/lib/utils";
 
 type OutputFormat = "webp" | "avif" | "png" | "jpeg";
@@ -274,14 +272,16 @@ export function ConverterWorkbench() {
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <AnimatedContainer className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-4 sm:px-6 lg:px-8">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-4 sm:px-6 lg:px-8">
         <header className="grid gap-4 border-b border-border py-5 lg:grid-cols-[1fr_auto] lg:items-end">
           <div className="flex flex-col gap-3">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="secondary">LOCAL API</Badge>
-              <Badge variant={stage === "done" ? "default" : "outline"}>
+              <Chip color="accent" variant="soft">
+                LOCAL API
+              </Chip>
+              <Chip color={statusColor(stage)} variant="secondary">
                 {statusLabel(stage)}
-              </Badge>
+              </Chip>
             </div>
             <div className="flex flex-col gap-2">
               <h1 className="max-w-3xl text-3xl font-semibold leading-tight sm:text-5xl">
@@ -407,14 +407,24 @@ export function ConverterWorkbench() {
             </button>
 
             {error ? (
-              <Alert variant="destructive">
-                <AlertCircleIcon />
-                <AlertTitle>변환 실패</AlertTitle>
-                <AlertDescription>{error}</AlertDescription>
+              <Alert status="danger">
+                <Alert.Indicator>
+                  <AlertCircleIcon />
+                </Alert.Indicator>
+                <Alert.Content>
+                  <Alert.Title>변환 실패</Alert.Title>
+                  <Alert.Description>{error}</Alert.Description>
+                </Alert.Content>
               </Alert>
             ) : null}
 
-            {isBusy ? <Progress value={progress} /> : null}
+            {isBusy ? (
+              <ProgressBar aria-label="변환 진행률" value={progress}>
+                <ProgressBar.Track>
+                  <ProgressBar.Fill />
+                </ProgressBar.Track>
+              </ProgressBar>
+            ) : null}
 
             {result ? (
               <section className="grid gap-4 border border-border bg-card p-4 md:grid-cols-[1fr_auto] md:items-center">
@@ -435,7 +445,20 @@ export function ConverterWorkbench() {
                     emphasis
                   />
                 </div>
-                <Button render={<a href={result.url} download={result.fileName} />}>
+                <Button
+                  render={(props) => {
+                    const anchorProps = { ...props };
+                    delete (anchorProps as { ref?: unknown }).ref;
+
+                    return (
+                      <a
+                        {...(anchorProps as React.AnchorHTMLAttributes<HTMLAnchorElement>)}
+                        href={result.url}
+                        download={result.fileName}
+                      />
+                    );
+                  }}
+                >
                   <ArrowDownToLineIcon data-icon="inline-start" />
                   다운로드
                 </Button>
@@ -454,71 +477,78 @@ export function ConverterWorkbench() {
                 </div>
                 <SparklesIcon className="text-primary" />
               </div>
-              <ToggleGroup
-                value={[format]}
-                onValueChange={(value) => {
-                  const next = value.at(-1) as OutputFormat | undefined;
-                  if (next) {
-                    setFormat(next);
-                  }
-                }}
-                className="mt-4 grid w-full grid-cols-2"
-                variant="outline"
-                spacing={1}
+              <RadioGroup
+                aria-label="출력 포맷"
+                value={format}
+                onChange={(value) => setFormat(value as OutputFormat)}
+                className="mt-4 grid w-full grid-cols-2 gap-2"
+                orientation="horizontal"
+                variant="secondary"
               >
                 {formatOptions.map((option) => (
-                  <ToggleGroupItem
+                  <Radio
                     key={option.value}
                     value={option.value}
-                    className="h-16 flex-col items-start justify-center gap-1 px-3"
+                    className="group flex h-16 cursor-pointer items-center gap-3 border border-border bg-background px-3 transition-colors data-[selected=true]:border-primary data-[selected=true]:bg-accent"
                   >
-                    <span>{option.label}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {option.note}
-                    </span>
-                  </ToggleGroupItem>
+                    <Radio.Control>
+                      <Radio.Indicator />
+                    </Radio.Control>
+                    <Radio.Content className="gap-1">
+                      <Label>{option.label}</Label>
+                      <span className="text-xs text-muted-foreground">
+                        {option.note}
+                      </span>
+                    </Radio.Content>
+                  </Radio>
                 ))}
-              </ToggleGroup>
+              </RadioGroup>
             </section>
 
             <section className="border border-border bg-card p-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <h2 className="font-semibold">품질</h2>
-                <p className="text-sm text-muted-foreground">
-                  {qualityDisabled ? "PNG는 무손실" : `${quality}%`}
-                </p>
+                  <p className="text-sm text-muted-foreground">
+                    {qualityDisabled ? "PNG는 무손실" : `${quality}%`}
+                  </p>
+                </div>
+                {qualityDisabled ? (
+                  <span className="font-mono text-2xl tabular-nums">∞</span>
+                ) : (
+                  <Input
+                    aria-label="품질 직접 입력"
+                    inputMode="numeric"
+                    min={1}
+                    max={100}
+                    type="number"
+                    value={String(quality)}
+                    onChange={(event) => {
+                      setQuality(clampQuality(event.target.value));
+                    }}
+                    className="w-20 text-right font-mono text-lg tabular-nums"
+                  />
+                )}
               </div>
-              {qualityDisabled ? (
-                <span className="font-mono text-2xl tabular-nums">∞</span>
-              ) : (
-                <Input
-                  aria-label="품질 직접 입력"
-                  inputMode="numeric"
-                  min={1}
-                  max={100}
-                  type="number"
-                  value={quality}
-                  onChange={(event) => {
-                    setQuality(clampQuality(event.target.value));
-                  }}
-                  className="w-20 text-right font-mono text-lg tabular-nums"
-                />
-              )}
-            </div>
               <Slider
+                aria-label="출력 품질"
                 className="mt-5"
-                min={1}
-                max={100}
+                minValue={1}
+                maxValue={100}
                 step={1}
                 value={quality}
-                disabled={qualityDisabled}
-                onValueChange={(value) => {
+                isDisabled={qualityDisabled}
+                onChange={(value) => {
                   if (typeof value === "number") {
                     setQuality(value);
                   }
                 }}
-              />
+              >
+                <Slider.Track>
+                  <Slider.Fill />
+                  <Slider.Thumb />
+                </Slider.Track>
+              </Slider>
             </section>
 
             <section className="border border-border bg-card p-4">
@@ -573,8 +603,9 @@ export function ConverterWorkbench() {
               <div className="flex flex-col gap-3">
                 <Button
                   type="button"
-                  onClick={convert}
-                  disabled={!file || isBusy}
+                  onPress={convert}
+                  isDisabled={!file || isBusy}
+                  isPending={isBusy}
                   className="w-full"
                 >
                   {isBusy ? (
@@ -590,8 +621,8 @@ export function ConverterWorkbench() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={reset}
-                  disabled={isBusy}
+                  onPress={reset}
+                  isDisabled={isBusy}
                   className="w-full"
                 >
                   <RotateCcwIcon data-icon="inline-start" />
@@ -624,7 +655,7 @@ export function ConverterWorkbench() {
             </section>
           </aside>
         </section>
-      </AnimatedContainer>
+      </div>
     </main>
   );
 }
@@ -694,6 +725,21 @@ function statusLabel(stage: Stage) {
       return "ERROR";
     default:
       return "WAITING";
+  }
+}
+
+function statusColor(
+  stage: Stage
+): "accent" | "danger" | "default" | "success" {
+  switch (stage) {
+    case "converting":
+      return "accent";
+    case "done":
+      return "success";
+    case "error":
+      return "danger";
+    default:
+      return "default";
   }
 }
 
