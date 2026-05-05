@@ -25,6 +25,14 @@ pub struct ConvertStats {
     pub output_height: u32,
 }
 
+struct PreparedImage {
+    image: DynamicImage,
+    width: u32,
+    height: u32,
+    output_width: u32,
+    output_height: u32,
+}
+
 /// 변환 전 적용할 이미지 리사이즈 옵션
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ResizeOptions {
@@ -67,6 +75,14 @@ impl JpegBackground {
             u8::from_str_radix(&trimmed[4..6], 16).map_err(|_| "파란색 값을 읽을 수 없습니다")?;
         Ok(Self { r, g, b })
     }
+
+    pub fn from_name_or_hex(input: &str) -> std::result::Result<Self, String> {
+        match input.trim().to_ascii_lowercase().as_str() {
+            "white" => Ok(Self::white()),
+            "black" => Ok(Self::black()),
+            _ => Self::from_hex(input),
+        }
+    }
 }
 
 /// 변환 전후에 적용할 추가 옵션
@@ -74,6 +90,23 @@ impl JpegBackground {
 pub struct ConversionOptions {
     pub resize: Option<ResizeOptions>,
     pub jpeg_background: Option<JpegBackground>,
+}
+
+impl ConversionOptions {
+    pub fn for_format(
+        format: OutputFormat,
+        max_width: Option<u32>,
+        jpeg_background: Option<JpegBackground>,
+    ) -> std::result::Result<Self, String> {
+        if jpeg_background.is_some() && !format.is_jpeg() {
+            return Err("JPEG 배경색은 JPG/JPEG 출력에서만 사용할 수 있습니다".to_string());
+        }
+
+        Ok(Self {
+            resize: max_width.map(|max_width| ResizeOptions { max_width }),
+            jpeg_background,
+        })
+    }
 }
 
 /// 메모리에 로드된 이미지를 지정한 포맷으로 인코딩
@@ -216,6 +249,55 @@ fn write_output_file(output_path: &str, data: &[u8]) -> Result<()> {
     Ok(())
 }
 
+fn prepare_output_target(input_path: &str, output_path: &str) -> Result<u64> {
+    let input_size = fs::metadata(input_path)?.len();
+    ensure_output_available(output_path)?;
+    Ok(input_size)
+}
+
+fn load_image(input_path: &str) -> Result<DynamicImage> {
+    register_extra_decoders();
+    Ok(image::open(input_path)?)
+}
+
+fn prepare_image(input_path: &str, options: ConversionOptions) -> Result<PreparedImage> {
+    let img = load_image(input_path)?;
+    let (width, height) = img.dimensions();
+    let img = resize_image(img, options);
+    let (output_width, output_height) = img.dimensions();
+
+    Ok(PreparedImage {
+        image: img,
+        width,
+        height,
+        output_width,
+        output_height,
+    })
+}
+
+fn encode_and_write_output(
+    output_path: &str,
+    image: &DynamicImage,
+    format: OutputFormat,
+    quality: f32,
+    options: ConversionOptions,
+) -> Result<u64> {
+    let data = encode_to(image, format, quality, options)?;
+    write_output_file(output_path, &data)?;
+    Ok(fs::metadata(output_path)?.len())
+}
+
+fn conversion_stats(input_size: u64, output_size: u64, image: &PreparedImage) -> ConvertStats {
+    ConvertStats {
+        input_size,
+        output_size,
+        width: image.width,
+        height: image.height,
+        output_width: image.output_width,
+        output_height: image.output_height,
+    }
+}
+
 /// 이미지 변환 (출력 없음). 테스트와 배치 모드에서 사용
 pub fn convert_image_silent(
     input_path: &str,
@@ -261,24 +343,10 @@ pub fn convert_image_silent_with_conversion_options(
     options: ConversionOptions,
 ) -> Result<ConvertStats> {
     validate_output_extension(output_path, format)?;
-    let input_size = fs::metadata(input_path)?.len();
-    ensure_output_available(output_path)?;
-    register_extra_decoders();
-    let img = image::open(input_path)?;
-    let (width, height) = img.dimensions();
-    let img = resize_image(img, options);
-    let (output_width, output_height) = img.dimensions();
-    let data = encode_to(&img, format, quality, options)?;
-    write_output_file(output_path, &data)?;
-    let output_size = fs::metadata(output_path)?.len();
-    Ok(ConvertStats {
-        input_size,
-        output_size,
-        width,
-        height,
-        output_width,
-        output_height,
-    })
+    let input_size = prepare_output_target(input_path, output_path)?;
+    let image = prepare_image(input_path, options)?;
+    let output_size = encode_and_write_output(output_path, &image.image, format, quality, options)?;
+    Ok(conversion_stats(input_size, output_size, &image))
 }
 
 /// 단일 이미지 변환 (진행률 표시 + 결과 출력)
@@ -339,19 +407,24 @@ pub fn convert_image_with_conversion_options(
 
     pb.set_message("파일 분석 중...");
     pb.set_position(10);
-    let input_size = fs::metadata(input_path)?.len();
-    ensure_output_available(output_path)?;
+    let input_size = prepare_output_target(input_path, output_path)?;
 
     pb.set_position(20);
     pb.set_message("이미지 로딩 중...");
-    register_extra_decoders();
-    let img = image::open(input_path)?;
+    let img = load_image(input_path)?;
     let (width, height) = img.dimensions();
 
     pb.set_position(35);
     pb.set_message("크기 조정 중...");
     let img = resize_image(img, options);
     let (output_width, output_height) = img.dimensions();
+    let image = PreparedImage {
+        image: img,
+        width,
+        height,
+        output_width,
+        output_height,
+    };
 
     pb.set_position(40);
     pb.set_message(format!(
@@ -363,7 +436,7 @@ pub fn convert_image_with_conversion_options(
             ""
         }
     ));
-    let data = encode_to(&img, format, quality, options)?;
+    let data = encode_to(&image.image, format, quality, options)?;
 
     pb.set_position(80);
     pb.set_message("파일 저장 중...");
@@ -373,20 +446,8 @@ pub fn convert_image_with_conversion_options(
     pb.finish_with_message("✅ 변환 완료!");
 
     let output_size = fs::metadata(output_path)?.len();
-    print_single_summary(
-        input_path,
-        output_path,
-        &ConvertStats {
-            input_size,
-            output_size,
-            width,
-            height,
-            output_width,
-            output_height,
-        },
-        format,
-        quality,
-    );
+    let stats = conversion_stats(input_size, output_size, &image);
+    print_single_summary(input_path, output_path, &stats, format, quality);
     Ok(())
 }
 
