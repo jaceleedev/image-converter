@@ -12,6 +12,18 @@
 
 ## 최근 작업 로그
 
+### 2026-05-05 — 백엔드 HTTP API 서버 모듈 2차 리팩토링
+
+- 최신 `main` 기준으로 백엔드 서버 모듈 구조를 추가 정리
+- 1차에서 분리한 `src/server.rs` 단일 파일을 `src/server/` 하위 모듈로 재구성
+  - `config.rs`: 환경변수 기반 서버 설정과 CORS origin 설정
+  - `state.rs`: `AppState` 와 변환 동시성 제한기
+  - `routes.rs`: Axum `Router` 구성과 HTTP handler
+  - `request.rs`: multipart 요청 파싱과 입력값 검증
+  - `conversion.rs`: 변환 작업 실행, queue timeout, 픽셀 제한, 임시 파일 처리
+  - `response.rs` / `error.rs`: 다운로드 응답 헤더와 API 에러 응답 모델
+- `src/bin/server.rs` 는 계속 `image_converter::server::run()` 만 호출하는 얇은 엔트리포인트로 유지
+
 ### 2026-05-05 — 백엔드 서버/변환 코어 구조 리팩토링
 
 - 백엔드 Rust 코드만 대상으로 기능 변경 없는 구조 리팩토링 진행

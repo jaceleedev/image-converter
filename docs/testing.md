@@ -10,7 +10,9 @@
 src/
   main.rs         # CLI 인자 파서 단위 테스트 (#[cfg(test)] mod tests)
   bin/
-    server.rs     # HTTP API 서버 라우터/변환 요청 단위 테스트
+    server.rs     # HTTP API 서버 실행 엔트리포인트
+  server/
+    mod.rs        # HTTP API 서버 라우터/변환 요청 단위 테스트
   interactive.rs  # 대화형 모드 검증/경로/옵션 단위 테스트 (#[cfg(test)] mod tests)
   lib.rs          # 테스트용 함수들
   tests/
@@ -399,7 +401,7 @@ cargo test --release
 55. **`non_interactive_batch_skipped_outputs_still_succeed`**
     - 기존 출력 파일 때문에 건너뛴 항목만 있는 배치 변환은 성공 종료하고 기존 파일을 보존하는지 확인
 
-### 🌐 HTTP API 서버 테스트 (`src/bin/server.rs`)
+### 🌐 HTTP API 서버 테스트 (`src/server/mod.rs`)
 
 56. **`healthz_returns_ok`**
     - `GET /healthz` 가 200 OK 와 `ok` 본문을 반환하는지 확인
