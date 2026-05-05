@@ -9,6 +9,7 @@ use crate::converter::{
 };
 use crate::error::{ConverterError, Result};
 use crate::format::OutputFormat;
+use crate::input::{is_supported_input_extension, supported_input_extensions_label};
 use crate::utils::{format_file_size, format_quality_label};
 
 /// 디렉토리 변환 결과 합계
@@ -29,25 +30,9 @@ enum ProcessOutcome {
 
 /// 입력 파일이 지원하는 이미지 확장자인지 확인
 fn is_supported_image(path: &Path) -> bool {
-    matches!(
-        path.extension()
-            .and_then(|e| e.to_str())
-            .map(|s| s.to_lowercase())
-            .as_deref(),
-        Some(
-            "png"
-                | "jpg"
-                | "jpeg"
-                | "webp"
-                | "avif"
-                | "heic"
-                | "heif"
-                | "tiff"
-                | "tif"
-                | "bmp"
-                | "ico",
-        )
-    )
+    path.extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(is_supported_input_extension)
 }
 
 /// 입력 디렉토리의 이미지 파일을 모두 수집
@@ -194,8 +179,9 @@ pub fn convert_directory_with_conversion_options(
 
     if files.is_empty() {
         println!(
-            "\n{} 변환 가능한 이미지(.png/.jpg/.jpeg/.webp/.avif/.heic/.heif/.tiff/.bmp/.ico)가 없습니다.",
-            "⚠️".bright_yellow()
+            "\n{} 변환 가능한 이미지({})가 없습니다.",
+            "⚠️".bright_yellow(),
+            supported_input_extensions_label()
         );
         return Ok(BatchSummary {
             total_files: 0,

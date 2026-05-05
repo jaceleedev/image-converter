@@ -29,10 +29,11 @@ image_converter/
     ├── main.rs             # 진입점 - CLI 인자 처리, 단일/일괄 분기
     ├── lib.rs              # 라이브러리 루트 - 공개 API re-export
     ├── bin/
-    │   └── server.rs       # 로컬/웹 확장용 HTTP API 서버 진입점
+    │   └── server.rs       # HTTP API 서버 실행 엔트리포인트
     ├── error.rs            # ConverterError + Result 타입 (thiserror 기반)
     ├── format.rs           # OutputFormat enum + 출력 포맷 파싱/표시 헬퍼
-    ├── input.rs            # image 크레이트 추가 입력 디코더 등록
+    ├── input.rs            # 지원 입력 확장자 + 추가 입력 디코더 등록
+    ├── server.rs           # axum 라우터, 요청 파싱, 변환 API 응답
     ├── converter.rs        # 단일 파일 변환 + 인코딩 헬퍼
     ├── batch.rs            # 디렉토리 일괄 변환 (재귀 옵션, 스레드 수 명시 가능)
     ├── interactive.rs      # 대화형 모드 (단일/디렉토리)
@@ -56,9 +57,10 @@ image_converter/
 - 비대화형 일괄 변환은 모든 대상 처리를 끝낸 뒤 실패 파일이 1개 이상이면 `BatchPartialFailure` 로 종료해 자동화에서 non-zero 상태를 받을 수 있게 함 (`skipped` 는 실패로 보지 않음)
 - 에러 처리 및 종료 — `ConverterError` 의 `Display` 로 메시지 출력
 
-### `src/bin/server.rs` (HTTP API 서버)
+### `src/bin/server.rs` / `server.rs` (HTTP API 서버)
 
-- 웹 서비스 확장을 위한 `axum` 기반 API 서버 진입점
+- `src/bin/server.rs` 는 `image_converter::server::run()` 만 호출하는 얇은 바이너리 엔트리포인트
+- `server.rs` 는 웹 서비스 확장을 위한 `axum` 기반 API 서버 구현 모듈
 - `GET /healthz` 로 로컬 실행과 배포 헬스체크에 사용할 상태 응답 제공
 - `POST /v1/convert` 에서 multipart 업로드를 받아 단일 이미지를 변환
   - `file`: 업로드 이미지 파일 1개
@@ -67,6 +69,7 @@ image_converter/
   - `max_width`: 선택, 1 이상의 픽셀 값
   - `jpeg_background`: 선택, JPG/JPEG 출력에서만 `white` / `black` / `#RRGGBB`
 - 변환 자체는 `convert_image_silent_with_conversion_options` 를 호출해 기존 라이브러리 코어를 재사용
+- 업로드 입력 확장자 검증은 `input.rs` 의 공통 지원 확장자 목록을 사용해 배치 변환과 같은 기준을 유지
 - 업로드 크기, 디코딩 전 이미지 픽셀 수, 동시 변환 수, 변환 대기 시간, 변환 timeout 을 제한
 - CPU 중심 변환은 async runtime 을 오래 점유하지 않도록 `tokio::task::spawn_blocking` 에서 실행
 - 로컬 CORS 허용 origin 은 기본 `http://localhost:3000` 이며 `CONVERT_ALLOWED_ORIGIN` 으로 바꿀 수 있음
@@ -114,8 +117,10 @@ image_converter/
 - 확장자 문자열(`as_str`) 과 표시명(`display_name`) 헬퍼 제공
 - 출력 경로 검증용 허용 확장자 헬퍼 제공 (`.jpg`/`.jpeg` 는 JPEG 포맷에서 모두 허용)
 
-### `input.rs` (추가 입력 디코더)
+### `input.rs` (입력 포맷 공통 규칙)
 
+- CLI 배치 변환과 HTTP API 서버가 함께 쓰는 지원 입력 확장자 목록 관리
+- 지원 여부 확인 헬퍼와 사용자 메시지용 확장자 라벨 제공
 - `image` 크레이트 기본 디코더 밖의 입력 포맷을 등록
 - 현재는 `libheif-rs` 의 `image` 통합 훅으로 HEIC/HEIF 디코더를 한 번만 등록 (`std::sync::Once`)
 - AVIF 는 기존 `image` 0.25 `avif-native` 경로를 유지하기 위해 `libheif-rs` 의 AVIF 훅은 등록하지 않음
@@ -132,7 +137,7 @@ image_converter/
 - `convert_image_with_options` / `convert_image_silent_with_options`: `ResizeOptions` 같은 변환 전처리 옵션을 적용할 때 사용
 - `convert_image_with_conversion_options` / `convert_image_silent_with_conversion_options`: `ConversionOptions` 로 리사이즈와 JPEG 배경색을 함께 전달할 때 사용
 - 입력 로딩 전 `register_extra_decoders()` 를 호출해 HEIC/HEIF 입력도 `image::open` 흐름으로 디코딩
-- 두 함수 모두 동일한 내부 인코딩 헬퍼를 호출 (코드 중복 제거)
+- 조용한 변환과 진행률 표시 변환은 내부 단계 헬퍼를 공유해 출력 검증, 이미지 로딩, 리사이즈, 인코딩/저장, 통계 생성을 같은 규칙으로 처리
 - 리사이즈 옵션은 인코딩 전에 적용하며, 최대 가로 크기보다 큰 이미지만 비율 유지 축소 (`Lanczos3`, 확대 없음)
 - JPEG 배경색 옵션은 JPEG 인코딩 직전에 적용하며, 기본 API 에서는 기존 동작을 유지하고 대화형 모드/CLI 옵션에서만 값을 전달
 - `ConvertStats` 는 원본 크기와 출력 크기를 함께 담아 단일 변환 요약에서 리사이즈 결과를 표시할 수 있음
@@ -142,7 +147,7 @@ image_converter/
 ### `batch.rs` (디렉토리 일괄 변환)
 
 - `convert_directory`: 입력 디렉토리에서 지원 포맷만 골라 **rayon 으로 병렬** 변환
-  - 입력 화이트리스트: `png`/`jpg`/`jpeg`/`webp`/`avif`/`heic`/`heif`/`tiff`/`tif`/`bmp`/`ico`
+  - 입력 화이트리스트는 `input.rs` 의 공통 지원 확장자 목록을 사용
   - 시그니처 끝의 `threads: Option<usize>` 인자로 스레드 수 명시 가능. `None` 이면 rayon 전역 풀 (= `RAYON_NUM_THREADS` 또는 CPU 코어 수), `Some(n)` 이면 `ThreadPoolBuilder::new().num_threads(n).build()` 로 local pool 만들고 `pool.install(|| par_iter)` 패턴으로 scoped 실행. 전역 풀을 변경하지 않아 라이브러리 친화적
 - `convert_directory_with_options`: 폴더 전체에 같은 리사이즈 옵션을 적용할 때 사용
 - `convert_directory_with_conversion_options`: 폴더 전체에 같은 `ConversionOptions` 를 적용해 리사이즈와 JPEG 배경색을 함께 전달할 때 사용
@@ -223,6 +228,9 @@ main.rs
         │     ├── batch.rs
         │     └── format.rs
         └── tests/ (테스트에서만 사용)
+
+src/bin/server.rs
+  └── image_converter::server::run()
 
 server.rs
   └── image_converter (lib)

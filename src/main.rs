@@ -5,7 +5,7 @@ use std::path::Path;
 use image_converter::{
     convert_directory_with_conversion_options, convert_image_with_conversion_options,
     interactive::interactive_mode, BatchSummary, ConversionOptions, ConverterError, JpegBackground,
-    OutputFormat, ResizeOptions,
+    OutputFormat,
 };
 
 fn parse_quality(s: &str) -> Result<f32, String> {
@@ -39,11 +39,7 @@ fn parse_max_width(s: &str) -> Result<u32, String> {
 }
 
 fn parse_jpeg_background(s: &str) -> Result<JpegBackground, String> {
-    match s.trim().to_ascii_lowercase().as_str() {
-        "white" => Ok(JpegBackground::white()),
-        "black" => Ok(JpegBackground::black()),
-        _ => JpegBackground::from_hex(s),
-    }
+    JpegBackground::from_name_or_hex(s)
 }
 
 fn build_conversion_options(
@@ -51,14 +47,8 @@ fn build_conversion_options(
     max_width: Option<u32>,
     jpeg_background: Option<JpegBackground>,
 ) -> Result<ConversionOptions, String> {
-    if jpeg_background.is_some() && !format.is_jpeg() {
-        return Err("--jpeg-background 옵션은 JPG/JPEG 출력에서만 사용할 수 있습니다".into());
-    }
-
-    Ok(ConversionOptions {
-        resize: max_width.map(|max_width| ResizeOptions { max_width }),
-        jpeg_background,
-    })
+    ConversionOptions::for_format(format, max_width, jpeg_background)
+        .map_err(|_| "--jpeg-background 옵션은 JPG/JPEG 출력에서만 사용할 수 있습니다".into())
 }
 
 /// 대화형 안내로 웹용 이미지를 PNG/JPG/WebP/AVIF 로 변환합니다
@@ -197,6 +187,7 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use image_converter::ResizeOptions;
 
     #[test]
     fn parse_quality_accepts_valid_range() {
