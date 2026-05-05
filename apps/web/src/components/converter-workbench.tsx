@@ -13,21 +13,20 @@ import {
 } from "lucide-react";
 import * as React from "react";
 
+import { AnimatedContainer } from "@/components/aceternity/animated-container";
 import {
   Alert,
   AlertDescription,
   AlertTitle,
-} from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
-import { Slider } from "@/components/ui/slider";
-import {
+  Badge,
+  Button,
+  Input,
+  Progress,
+  Separator,
+  Slider,
   ToggleGroup,
   ToggleGroupItem,
-} from "@/components/ui/toggle-group";
+} from "@/components/aceternity/primitives";
 import { cn } from "@/lib/utils";
 
 type OutputFormat = "webp" | "avif" | "png" | "jpeg";
@@ -275,7 +274,7 @@ export function ConverterWorkbench() {
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-4 sm:px-6 lg:px-8">
+      <AnimatedContainer className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-4 sm:px-6 lg:px-8">
         <header className="grid gap-4 border-b border-border py-5 lg:grid-cols-[1fr_auto] lg:items-end">
           <div className="flex flex-col gap-3">
             <div className="flex flex-wrap items-center gap-2">
@@ -625,7 +624,7 @@ export function ConverterWorkbench() {
             </section>
           </aside>
         </section>
-      </div>
+      </AnimatedContainer>
     </main>
   );
 }
