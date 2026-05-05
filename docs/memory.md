@@ -12,6 +12,20 @@
 
 ## 최근 작업 로그
 
+### 2026-05-05 — 웹 UI 시스템 shadcn 제거 및 Aceternity 기반 준비
+
+- 사용자가 `git restore .` 로 이전 디자인 시도를 되돌린 뒤, shadcn/ui 를 걷어내고 Aceternity UI 방향으로 전환하기로 결정
+- `apps/web` 에서 shadcn 관련 설정과 컴포넌트 제거
+  - `components.json` 제거
+  - `apps/web/src/components/ui/*` 제거
+  - `@base-ui/react`, `class-variance-authority`, `shadcn`, `tw-animate-css` 의존성 제거
+  - `globals.css` 의 `shadcn/tailwind.css`, `tw-animate-css` import 제거
+- Aceternity 기반 준비
+  - 공식 Aceternity 안내에 맞춰 `motion` 의존성 추가
+  - `apps/web/src/components/aceternity/` 아래에 로컬 primitive 와 Motion 기반 `AnimatedContainer` 추가
+  - 기존 변환 작업대는 기능을 유지하면서 shadcn import 대신 로컬 Aceternity primitive 를 사용하도록 교체
+- `./scripts/check-web.sh` 성공 — ESLint 와 Next.js build 통과
+
 ### 2026-05-04 — 로컬 웹/API 안정화 보강
 
 - 브랜치: `fix/web-local-stability`

@@ -9,14 +9,14 @@
 - 웹 UI 는 Next.js + TypeScript 로 만든다.
 - 이미지 변환 처리는 Next.js 서버가 아니라 Rust API 서버가 맡는다.
 - 초기 트래픽은 적을 가능성이 높으므로, Rust API 는 사용하지 않을 때 0 인스턴스까지 줄어드는 Cloud Run 배포를 우선 검토한다.
-- UI 시스템은 하나로 통일한다. MVP 기준으로는 Tailwind CSS + shadcn/ui 를 기본값으로 둔다.
+- UI 시스템은 하나로 통일한다. 현재 웹 앱은 Tailwind CSS v4 + Aceternity UI 계열 로컬 컴포넌트 방향으로 전환한다.
 
 ## 목표 아키텍처
 
 ```text
 image-converter/
 ├── apps/
-│   └── web/              # Next.js + TypeScript + Tailwind CSS + shadcn/ui
+│   └── web/              # Next.js + TypeScript + Tailwind CSS v4 + Aceternity UI 계열 컴포넌트
 ├── src/
 │   ├── main.rs           # 기존 CLI 진입점 유지
 │   ├── lib.rs            # 변환 코어 공개 API
@@ -89,29 +89,28 @@ multipart 요청 수신
 
 여러 UI 라이브러리를 동시에 설치해서 섞지 않습니다. Tailwind 기반이라도 각 라이브러리의 theme token, spacing, radius, animation, focus style 이 달라지면 제품이 금방 흐트러집니다.
 
-MVP 기준 권장안:
+현재 기준 권장안:
 
 - Tailwind CSS
-- shadcn/ui
+- Aceternity UI 계열 컴포넌트
 - lucide-react
-- 필요한 경우 Framer Motion 은 직접 만든 소수 컴포넌트에만 사용
+- 필요한 경우 Motion 기반 애니메이션은 직접 만든 소수 컴포넌트에만 사용
 
-shadcn/ui 를 기본 UI 시스템으로 확정합니다. 기본 문서와 예제는 흑백 톤이 강하지만, shadcn/ui 는 완성된 테마를 그대로 쓰는 라이브러리라기보다 프로젝트 안으로 가져와 소유하는 컴포넌트 출발점에 가깝습니다. 따라서 초기부터 우리 서비스의 색상, radius, spacing, 버튼 위계, 업로드 영역, 결과 비교 UI 를 별도 design token 으로 잡습니다.
+초기에는 shadcn/ui 를 기본 UI 시스템으로 검토했지만, 디자인 방향을 더 과감하게 열어두기 위해 shadcn/ui 의 컴포넌트와 설정을 제거하고 Aceternity UI 계열 컴포넌트로 전환합니다. Aceternity UI 도 전체 런타임 패키지를 의존하는 방식보다는 필요한 컴포넌트를 로컬 코드로 가져와 프로젝트 안에서 소유하는 방식을 기본값으로 둡니다.
 
-shadcn/ui 를 고르는 이유:
+Aceternity UI 계열로 전환하는 이유:
 
 - Next.js, TypeScript, Tailwind 와 궁합이 좋다.
-- 컴포넌트 소스가 프로젝트 안으로 들어와 커스터마이징하기 쉽다.
-- AI 가 수정하기 좋은 구조다.
-- Radix 기반 컴포넌트가 많아 접근성 기본기가 좋다.
-- 대시보드보다 실제 도구 화면을 만들기 쉽다.
-- Pro 컴포넌트 구매 압박 없이 무료 기반으로 제품 UI 를 쌓기 좋다.
+- 애니메이션과 배경 효과를 제품 톤에 맞게 강하게 실험하기 좋다.
+- 필요한 컴포넌트만 로컬로 소유해 디자인을 과감하게 바꾸기 쉽다.
+- 기본 컴포넌트 라이브러리 느낌보다 독자적인 도구 화면을 만들기 좋다.
 
 다른 UI 후보의 사용 원칙:
 
-- daisyUI: 빠른 프로토타입에는 좋지만 MVP 기본 UI 시스템으로는 shadcn/ui 를 우선한다.
-- HeroUI: 기본 스타일이 잘 잡힌 완성형 컴포넌트 라이브러리지만, 유료 Pro 영역과 라이브러리 고유 테마 의존성을 고려해 MVP 기본값으로 쓰지 않는다. shadcn/ui 와 동시에 쓰지 않는다.
-- Magic UI / Aceternity UI: 랜딩 페이지 효과 참고용으로만 본다. 꼭 필요한 경우에도 설치형 라이브러리로 섞기보다 코드를 로컬 컴포넌트로 가져와 우리 design token 에 맞춘다.
+- daisyUI: 빠른 프로토타입 후보로만 둔다.
+- HeroUI: 기본 스타일이 잘 잡힌 완성형 컴포넌트 라이브러리지만, 유료 Pro 영역과 라이브러리 고유 테마 의존성을 고려해 MVP 기본값으로 쓰지 않는다.
+- shadcn/ui: 현재 웹 앱에서는 제거한다. Aceternity 컴포넌트 설치에 shadcn CLI 가 필요할 수 있어도, shadcn/ui 컴포넌트 세트를 제품 UI 기준으로 삼지는 않는다.
+- Magic UI / TailAdmin: 기본 UI 시스템이 아니라 참고용 또는 향후 별도 검토 후보로 둔다.
 - TailAdmin: 공개 변환 도구 화면에는 쓰지 않는다. 나중에 관리자/사용량/결제 대시보드가 필요할 때 별도 검토한다.
 
 ## 초기 화면 UX
@@ -229,7 +228,7 @@ AWS 를 쓴다면 App Runner 가 Cloud Run 과 가장 비슷한 선택지입니�
    - 파일 크기/픽셀 수/동시성 제한
 
 2. Next.js 웹 앱 추가
-   - Tailwind CSS + shadcn/ui
+   - Tailwind CSS v4 + Aceternity UI 계열 컴포넌트
    - 단일 이미지 변환 화면
    - 변환 결과 다운로드
 
