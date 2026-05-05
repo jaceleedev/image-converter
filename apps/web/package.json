@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@fontsource/pretendard": "^5.2.5",
     "@heroui/react": "^3.0.3",
     "@heroui/styles": "^3.0.3",
     "clsx": "^2.1.1",

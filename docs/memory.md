@@ -12,6 +12,36 @@
 
 ## 최근 작업 로그
 
+### 2026-05-05 — HeroUI 기반 웹 변환 작업대 전면 디자인 개편
+
+- 웹 앱 첫 화면을 랜딩 페이지가 아니라 실제 변환 작업대 중심의 모던한 제품 UI 로 재구성
+  - 후속 피드백을 반영해 상단 상태 바 + 중앙 업로드 + 우측 설정 패널 구조를 제거
+  - 왼쪽 다크 컨트롤 데크와 오른쪽 라이트 미리보기 스테이지로 큰 화면 골격을 재구성
+  - 나중에 배치 변환, 사용량, 로그인, 히스토리 같은 기능이 붙어도 큰 레이아웃을 유지할 수 있는 패널형 구조로 정리
+  - `로컬 우선` 같은 설명성 패널은 제거하고 실제 변환 조작과 결과 정보만 남김
+- 후속 피드백 반영
+  - 왼쪽 컨트롤 데크의 강제 dark theme 을 제거
+  - 라이트/다크 모드 확장을 고려해 컨트롤 데크도 전역 HeroUI theme token 을 따르도록 정리
+- HeroUI v3 무료 컴포넌트와 프로젝트 HeroUI MCP 를 기준으로 구현
+  - `Surface`, `Button`, `Card`, `Chip`, `RadioGroup`, `Slider`, `Input`, `ProgressBar`, `Alert`, `Tooltip` 사용
+  - HeroUI Pro 의 `Drop Zone`, `Resizable`, 대시보드/채팅/메일 템플릿은 시각 구조와 상호작용 참고용으로만 확인하고, 유료 컴포넌트 의존성은 추가하지 않음
+- Pretendard 를 웹 앱 기본 폰트로 추가
+  - `@fontsource/pretendard` 의 400/500/600/700 weight 사용
+  - 한국어/영어 혼합 UI 에서 Apple 계열에 가까운 톤을 목표로 설정
+- `globals.css` 를 HeroUI v3 + Tailwind CSS v4 기준 design token 중심으로 재작성
+  - 기본은 light theme
+  - 작업대, 필드, 경계선, 포커스, 업로드 스테이지, 하단 액션 바용 토큰과 유틸리티 추가
+- 기능 흐름은 유지
+  - 지원 입력 확장자 기반 파일 선택/드롭
+  - 미리보기 가능 파일은 브라우저 preview, HEIC/HEIF/TIFF 등은 미리보기 없이 변환 가능
+  - 출력 포맷, 품질, 최대 가로 크기, JPEG 배경색, 변환 취소/초기화/다운로드 유지
+- 검증
+  - `npm run lint` 성공
+  - `npm run build` 성공
+  - `GET http://localhost:4000/healthz` 성공
+  - `POST http://localhost:4000/v1/convert` 로 favicon ICO -> WebP 변환 성공
+  - `npm run dev` 로 `http://localhost:3000` 로컬 웹 앱 실행 확인
+
 ### 2026-05-05 — 웹 UI 시스템 HeroUI v3 전환 준비
 
 - 사용자가 Aceternity UI 를 완전히 제거하고 HeroUI 로 전환하기로 결정

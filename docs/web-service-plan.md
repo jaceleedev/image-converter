@@ -94,6 +94,7 @@ multipart 요청 수신
 - Tailwind CSS
 - HeroUI v3 (`@heroui/react`, `@heroui/styles`)
 - lucide-react
+- Pretendard (`@fontsource/pretendard`)
 
 초기에는 shadcn/ui 와 Aceternity UI 계열 로컬 컴포넌트를 검토했지만, 제품 UI 기준은 HeroUI v3 로 전환합니다. HeroUI v3 는 Tailwind CSS v4 와 React 19 조건에 맞고, 기본 접근성/상태 처리/컴포넌트 품질이 갖춰져 있어 변환 작업대 UI 를 빠르게 안정화하기 좋습니다.
 
@@ -103,6 +104,9 @@ HeroUI v3 로 전환하는 이유:
 - React Aria 기반 컴포넌트로 접근성과 키보드 상호작용을 기본 확보하기 좋다.
 - 무료로 사용할 수 있는 공개 컴포넌트 라이브러리이며, Pro 템플릿 영역에 의존하지 않아도 MVP 를 구성할 수 있다.
 - HeroUI v3 는 Provider 없이 `@import "@heroui/styles";` 와 compound component 패턴으로 쓸 수 있어 설정이 단순하다.
+- Pretendard 는 한국어/영어 혼합 UI 에서 안정적인 가독성과 제품용 인상을 주기 좋다.
+
+HeroUI Pro 의 유료 컴포넌트와 템플릿은 설치하지 않고 참고 자료로만 봅니다. 예를 들어 Drop Zone 의 파일 상태/리스트 구조, Resizable 의 패널형 레이아웃 사고방식, Dashboard/Chat/Email 템플릿의 조밀한 앱 레이아웃은 현재 작업대 UI 에 맞게 직접 구현합니다.
 
 다른 UI 후보의 사용 원칙:
 
@@ -117,7 +121,8 @@ HeroUI v3 로 전환하는 이유:
 
 핵심 화면 구성:
 
-- 드래그 앤 드롭 업로드 영역
+- 왼쪽 컨트롤 데크: 파일 선택, 출력 포맷, 품질, 크기, JPEG 배경색, 변환/다운로드 액션
+- 오른쪽 미리보기 스테이지: 드래그 앤 드롭, 원본 미리보기, 변환 결과 지표
 - 원본 정보: 파일명, 포맷, 용량, 크기
 - 출력 포맷 선택: WebP, AVIF, PNG, JPEG
 - 품질 슬라이더: PNG 선택 시 비활성 또는 무손실 표시
