@@ -33,7 +33,15 @@ image_converter/
     ├── error.rs            # ConverterError + Result 타입 (thiserror 기반)
     ├── format.rs           # OutputFormat enum + 출력 포맷 파싱/표시 헬퍼
     ├── input.rs            # 지원 입력 확장자 + 추가 입력 디코더 등록
-    ├── server.rs           # axum 라우터, 요청 파싱, 변환 API 응답
+    ├── server/             # axum HTTP API 서버 모듈
+    │   ├── mod.rs          # 서버 실행 흐름과 서버 모듈 테스트
+    │   ├── config.rs       # 환경변수 기반 서버 설정
+    │   ├── state.rs        # AppState 와 변환 동시성 제한기
+    │   ├── routes.rs       # Router 구성과 HTTP handler
+    │   ├── request.rs      # multipart 요청 파싱과 입력값 검증
+    │   ├── conversion.rs   # 변환 작업 실행, timeout, 픽셀 제한
+    │   ├── response.rs     # 다운로드 응답과 응답 헤더 구성
+    │   └── error.rs        # API 에러 응답 모델
     ├── converter.rs        # 단일 파일 변환 + 인코딩 헬퍼
     ├── batch.rs            # 디렉토리 일괄 변환 (재귀 옵션, 스레드 수 명시 가능)
     ├── interactive.rs      # 대화형 모드 (단일/디렉토리)
@@ -57,10 +65,11 @@ image_converter/
 - 비대화형 일괄 변환은 모든 대상 처리를 끝낸 뒤 실패 파일이 1개 이상이면 `BatchPartialFailure` 로 종료해 자동화에서 non-zero 상태를 받을 수 있게 함 (`skipped` 는 실패로 보지 않음)
 - 에러 처리 및 종료 — `ConverterError` 의 `Display` 로 메시지 출력
 
-### `src/bin/server.rs` / `server.rs` (HTTP API 서버)
+### `src/bin/server.rs` / `server/` (HTTP API 서버)
 
 - `src/bin/server.rs` 는 `image_converter::server::run()` 만 호출하는 얇은 바이너리 엔트리포인트
-- `server.rs` 는 웹 서비스 확장을 위한 `axum` 기반 API 서버 구현 모듈
+- `server/` 는 웹 서비스 확장을 위한 `axum` 기반 API 서버 구현 모듈
+- 서버 내부는 설정, 상태, 라우터, 요청 파싱, 변환 실행, 응답/에러 모델로 분리
 - `GET /healthz` 로 로컬 실행과 배포 헬스체크에 사용할 상태 응답 제공
 - `POST /v1/convert` 에서 multipart 업로드를 받아 단일 이미지를 변환
   - `file`: 업로드 이미지 파일 1개
@@ -232,8 +241,13 @@ main.rs
 src/bin/server.rs
   └── image_converter::server::run()
 
-server.rs
+server/
   └── image_converter (lib)
+        ├── routes.rs (라우터 구성 + handler)
+        ├── request.rs (multipart 요청 파싱)
+        ├── conversion.rs (변환 실행 + timeout)
+        ├── response.rs / error.rs (HTTP 응답 모델)
+        ├── config.rs / state.rs (환경 설정 + 공유 상태)
         ├── converter.rs (단일 변환 코어)
         ├── format.rs (출력 포맷 타입)
         └── input.rs (추가 입력 디코더 등록)
