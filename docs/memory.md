@@ -12,6 +12,12 @@
 
 ## 최근 작업 로그
 
+### 2026-05-05 — 웹 Playwright E2E 추가
+
+- `apps/web` 에 Playwright 를 로컬 devDependency 로 추가
+- 브라우저 캐시는 `apps/web/.playwright-browsers` 로 제한하고 git ignore 처리
+- `npm run test:e2e` 로 Rust API 서버와 Next.js dev server 를 띄워 업로드 → WebP 변환 → 다운로드 흐름을 검증
+
 ### 2026-05-05 — 백엔드 HTTP API 서버 모듈 2차 리팩토링
 
 - 최신 `main` 기준으로 백엔드 서버 모듈 구조를 추가 정리

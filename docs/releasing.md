@@ -71,27 +71,41 @@ install -m 755 target/release/image_converter ~/.local/bin/image_converter
    ./scripts/check.sh
    ```
 
-4. 릴리즈 모드 테스트까지 확인할 때는 다음을 추가로 실행합니다.
+4. 웹 앱 품질 검사를 통과시킵니다.
+
+   ```bash
+   ./scripts/check-web.sh
+   ```
+
+5. 웹 UI 나 API 연동 흐름이 바뀌었다면 Playwright E2E 를 확인합니다.
+
+   ```bash
+   cd apps/web
+   npm run test:e2e:install
+   npm run test:e2e
+   ```
+
+6. 릴리즈 모드 테스트까지 확인할 때는 다음을 추가로 실행합니다.
 
    ```bash
    ./scripts/check.sh --release
    ```
 
-5. release 빌드와 버전 출력을 확인합니다.
+7. release 빌드와 버전 출력을 확인합니다.
 
    ```bash
    docker compose run --rm dev cargo build --release
    docker compose run --rm dev cargo run --release -- --version
    ```
 
-6. 설치 경험을 바꾸는 변경이라면 로컬 설치 경로도 별도로 확인합니다.
+8. 설치 경험을 바꾸는 변경이라면 로컬 설치 경로도 별도로 확인합니다.
 
    ```bash
    cargo install --path . --locked
    image_converter --version
    ```
 
-7. merge 후 태그를 만들 때는 릴리즈 노트와 버전이 맞는지 마지막으로 확인한 뒤 태그를 push 합니다.
+9. merge 후 태그를 만들 때는 릴리즈 노트와 버전이 맞는지 마지막으로 확인한 뒤 태그를 push 합니다.
 
    ```bash
    git tag -a vX.Y.Z -m "vX.Y.Z"

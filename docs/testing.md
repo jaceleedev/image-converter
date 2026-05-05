@@ -87,6 +87,16 @@ docker compose up api web
 
 브라우저에서 `http://localhost:3000` 을 열면 웹 앱이 `http://localhost:4000` 의 Rust API 로 직접 변환 요청을 보냅니다.
 
+웹 E2E 테스트는 Playwright 로 실행합니다. 브라우저 바이너리는 `apps/web/.playwright-browsers` 에 설치되며 커밋하지 않습니다.
+
+```bash
+cd apps/web
+npm run test:e2e:install
+npm run test:e2e
+```
+
+현재 E2E 는 실제 브라우저에서 이미지 업로드, WebP 변환, 다운로드 파일 시그니처 확인까지 검증합니다.
+
 ### 로컬 Rust 로 실행
 
 호스트에 Rust 와 시스템 의존성(`nasm`, `dav1d`, `libheif`, `pkg-config`) 을 직접 설치한 경우에는 같은 검사를 로컬 Cargo 로 실행할 수 있습니다.
