@@ -12,6 +12,18 @@
 
 ## 최근 작업 로그
 
+### 2026-05-05 — 웹 변환 작업대 프론트 구조 리팩토링
+
+- 프론트엔드만 대상으로 기능 변경 없는 구조 리팩토링 진행
+- 기존 `apps/web/src/components/converter-workbench.tsx` 의 1,400줄대 단일 컴포넌트를 `apps/web/src/features/converter/` feature 구조로 분리
+  - `hooks/use-converter.ts`: 파일 선택, 변환 요청, 진행률, URL 정리, reset 상태 관리
+  - `lib/api.ts`, `lib/format.ts`, `lib/image.ts`: API 호출과 포맷/파일/이미지 메타 유틸
+  - `components/`: 컨트롤 데크, 업로드 도크, 미리보기 스테이지, 포맷 선택, 결과 카드 등 UI 하위 컴포넌트
+- 기존 import 호환을 위해 `apps/web/src/components/converter-workbench.tsx` 는 새 feature 컴포넌트 re-export 로 유지
+- 검증
+  - `npm run lint` 성공
+  - `npm run build` 성공
+
 ### 2026-05-05 — HeroUI 기반 웹 변환 작업대 전면 디자인 개편
 
 - 웹 앱 첫 화면을 랜딩 페이지가 아니라 실제 변환 작업대 중심의 모던한 제품 UI 로 재구성
