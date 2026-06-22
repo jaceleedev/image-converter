@@ -118,10 +118,25 @@ fn encode_to(
 ) -> Result<Vec<u8>> {
     match format {
         OutputFormat::Webp => {
-            let encoder =
-                WebpEncoder::from_image(img).map_err(|e| ConverterError::Webp(e.to_string()))?;
-            let data = encoder.encode(quality);
-            Ok(data.to_vec())
+            // webp 크레이트의 from_image 는 Luma/LumaA(흑백·LA) 와 16-bit/32F 입력에서
+            // Err("Unimplemented") 를 반환한다. 해당 모드는 RGBA8 로 정규화해 인코딩하고,
+            // RGB8/RGBA8 입력은 기존 from_rgb/from_rgba 경로를 그대로 유지한다.
+            let data = match img {
+                DynamicImage::ImageRgb8(_) | DynamicImage::ImageRgba8(_) => {
+                    let encoder = WebpEncoder::from_image(img)
+                        .map_err(|e| ConverterError::Webp(e.to_string()))?;
+                    encoder.encode(quality).to_vec()
+                }
+                other => {
+                    let rgba = other.to_rgba8();
+                    let width = rgba.width();
+                    let height = rgba.height();
+                    WebpEncoder::from_rgba(rgba.as_raw(), width, height)
+                        .encode(quality)
+                        .to_vec()
+                }
+            };
+            Ok(data)
         }
         OutputFormat::Avif => {
             let (width, height) = img.dimensions();
