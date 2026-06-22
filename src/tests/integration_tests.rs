@@ -59,6 +59,51 @@ fn create_test_heic_image(
 }
 
 #[test]
+fn test_webp_conversion_from_luma_alpha_input() -> Result<(), Box<dyn std::error::Error>> {
+    test_description!("LA(흑백+알파) 입력의 WebP 변환 회귀 테스트");
+    test_step!("LumaA8 PNG → WebP 변환이 Unimplemented 없이 성공하는지 확인");
+
+    let temp_dir = TempDir::new()?;
+    let input_path = temp_dir.path().join("luma_alpha.png");
+    let output_path = temp_dir.path().join("luma_alpha.webp");
+
+    // LumaA8(흑백+알파) PNG 생성 — webp 크레이트 from_image 가 거부하던 모드
+    let luma_alpha = image::GrayAlphaImage::from_fn(32, 32, |x, y| {
+        let luma = if (x + y) % 2 == 0 { 220 } else { 30 };
+        let alpha = if x < 16 { 255 } else { 128 };
+        image::LumaA([luma, alpha])
+    });
+    luma_alpha.save(&input_path)?;
+
+    // 입력이 실제로 LA 모드인지 확인 (회귀 테스트 전제 보호)
+    assert!(
+        matches!(
+            image::open(&input_path)?,
+            image::DynamicImage::ImageLumaA8(_)
+        ),
+        "테스트 입력은 LumaA8(LA) 모드여야 함"
+    );
+
+    convert_image_silent(
+        input_path.to_str().unwrap(),
+        output_path.to_str().unwrap(),
+        OutputFormat::Webp,
+        90.0,
+    )?;
+
+    assert!(output_path.exists(), "WebP 파일이 생성되어야 함");
+
+    // RIFF....WEBP 시그니처로 유효한 WebP 인지 확인
+    let bytes = fs::read(&output_path)?;
+    assert!(bytes.len() > 12, "WebP 출력이 비어 있지 않아야 함");
+    assert_eq!(&bytes[0..4], b"RIFF", "WebP RIFF 시그니처여야 함");
+    assert_eq!(&bytes[8..12], b"WEBP", "WebP 포맷 시그니처여야 함");
+    test_success!("LA 입력이 유효한 WebP 로 변환됨");
+
+    Ok(())
+}
+
+#[test]
 fn test_webp_conversion() -> Result<(), Box<dyn std::error::Error>> {
     test_description!("WebP 변환 기능 전체 테스트");
     test_step!("PNG → WebP 변환이 정상적으로 작동하는지 확인");
